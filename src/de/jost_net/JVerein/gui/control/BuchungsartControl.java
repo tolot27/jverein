@@ -20,9 +20,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.rmi.RemoteException;
 import java.util.List;
-
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.Listener;
 
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Element;
@@ -34,6 +35,7 @@ import de.jost_net.JVerein.gui.menu.BuchungsartMenu;
 import de.jost_net.JVerein.io.FileViewer;
 import de.jost_net.JVerein.io.Reporter;
 import de.jost_net.JVerein.keys.ArtBuchungsart;
+import de.jost_net.JVerein.keys.SteuersatzBuchungsart;
 import de.jost_net.JVerein.keys.BuchungsartSort;
 import de.jost_net.JVerein.rmi.Buchungsart;
 import de.jost_net.JVerein.rmi.Buchungsklasse;
@@ -77,6 +79,10 @@ public class BuchungsartControl extends AbstractControl
   private SelectInput buchungsklasse;
 
   private CheckboxInput spende;
+
+  private SelectInput steuersatz;
+  
+  private SelectInput steuer_buchungsart;
 
   private TextInput suchtext;
 
@@ -141,9 +147,196 @@ public class BuchungsartControl extends AbstractControl
       return spende;
     }
     spende = new CheckboxInput(getBuchungsart().getSpende());
+    spende.addListener(new Listener()
+    {
+      // Listener enabled / disabled Steuer Felder falls eine Spende ausgewählt wurde
+      // (Steuer und Spende schließen sich aus)
+      @Override
+      public void handleEvent(Event event)
+      {
+        // Disable steuersatz and buchungsart for type spende
+        if ((Boolean) spende.getValue()) 
+        {
+          steuersatz.setPleaseChoose("Kein Steuersatz für Spenden");
+          steuersatz.setList(null);
+          steuersatz.setValue(null);
+          steuersatz.disable();
+          steuer_buchungsart.setPleaseChoose("Keine Buchungsart für Spenden");
+          steuer_buchungsart.setList(null);
+          steuer_buchungsart.setValue(null);
+          steuer_buchungsart.disable();
+        }
+        else 
+        {
+          // Rebuild selectinput values if buchungsart is NOT spende
+          steuersatz.setPleaseChoose(null);
+          steuersatz.setList(SteuersatzBuchungsart.getArray());
+          steuersatz.setValue(null);
+          steuersatz.enable();
+          steuer_buchungsart.setPleaseChoose("Bitte Steuersatz wählen");
+          steuer_buchungsart.setList(null);
+          steuer_buchungsart.setValue(null);
+          steuer_buchungsart.disable();
+        }
+      }
+    });
     return spende;
   }
 
+  public SelectInput getSteuersatz() throws RemoteException
+  {
+    if (steuersatz != null)
+    {
+      return steuersatz;
+    }
+    steuersatz = new SelectInput(SteuersatzBuchungsart.getArray(), 
+        new SteuersatzBuchungsart(getBuchungsart().getSteuersatz()));
+    // Disable steuersatz for type spende
+    if (getBuchungsart().getSpende()) 
+    {
+      steuersatz.setPleaseChoose("Kein Steuersatz für Spenden");
+      steuersatz.setValue(null);
+      steuersatz.setList(null);
+      steuersatz.disable();
+    }
+    steuersatz.addListener(new Listener()
+    {
+      // Listener enabled / disabled Feld Buchungsart für Steuer falls Steuer = 0 ist
+      @Override
+      public void handleEvent(Event event)
+      {
+        SteuersatzBuchungsart steuersatzItem = (SteuersatzBuchungsart) steuersatz.getValue();
+        Double steuersatzValue = (steuersatzItem == null) ? Double.valueOf(0) : (Double) steuersatzItem.getSteuersatz();
+        if (steuersatzValue == null || steuersatzValue == 0)
+        {
+          // disable und auf 0 setzen
+          steuer_buchungsart.setPleaseChoose("Bitte Steuersatz wählen");
+          steuer_buchungsart.setValue(null);
+          steuer_buchungsart.setList(null);
+          steuer_buchungsart.disable();
+        }
+        else 
+        {
+          try
+          {
+            DBIterator<Buchungsart> it = getFilteredBuchungsart();
+            List<Buchungsart> buchungsartenListe = it != null ? PseudoIterator.asList(it) : null;
+            steuer_buchungsart.setPleaseChoose("Bitte wählen");
+            steuer_buchungsart.setAttribute(getBuchungartAttribute());
+            steuer_buchungsart.setList(buchungsartenListe);
+            steuer_buchungsart.enable();
+          }
+          catch (RemoteException e)
+          {
+            Logger.error(e.getMessage());
+          }
+        }
+      }
+    });
+    return steuersatz;
+  }
+
+  public SelectInput getSteuerBuchungsart() throws RemoteException
+  {
+    if (steuer_buchungsart != null)
+    {
+      return steuer_buchungsart;
+    }
+    
+    Boolean isSpende = getBuchungsart().getSpende();
+    Boolean hasSteuersatz = ((getSteuersatz().getValue() != null) && (getSteuersatz().getValue().toString().length() > 0)) ? true : false;
+    
+    DBIterator<Buchungsart> it = (!isSpende && hasSteuersatz) ? getFilteredBuchungsart() : null;
+    steuer_buchungsart = new SelectInput(it, null);
+    if (it != null)
+    {
+      List<Buchungsart> buchungsartenListe = it != null ? PseudoIterator.asList(it) : null;
+      steuer_buchungsart.setAttribute(getBuchungartAttribute());
+      steuer_buchungsart.setPleaseChoose("Bitte wählen");
+      steuer_buchungsart.setPreselected(getBuchungsart().getSteuerBuchungsart());
+      steuer_buchungsart.setList(buchungsartenListe);
+      steuer_buchungsart.setMandatory(true);
+    }
+    else
+    {
+      String pleaseChoose = null;
+      if (isSpende)
+      {
+        pleaseChoose = "Keine Buchungsart für Spenden";
+      }
+      else if (!hasSteuersatz)
+      {
+        pleaseChoose = "Bitte Steuersatz wählen";
+      }
+      steuer_buchungsart.setPleaseChoose(pleaseChoose);
+      steuer_buchungsart.setValue(null);
+      steuer_buchungsart.setList(null);
+      steuer_buchungsart.setMandatory(false);
+      steuer_buchungsart.disable();
+    }
+    
+    return steuer_buchungsart;
+  }
+  
+  public String getBuchungartAttribute()
+  {
+    try
+    {
+      switch (Einstellungen.getEinstellung().getBuchungsartSort())
+      {
+        case BuchungsartSort.NACH_NUMMER:
+          return "nrbezeichnung";
+        case BuchungsartSort.NACH_BEZEICHNUNG_NR:
+          return "bezeichnungnr";
+        default:
+          return "bezeichnung";
+      }
+    }
+    catch (RemoteException e)
+    {
+      String fehler = "Keine Buchungssortierung hinterlegt.";
+      Logger.error(fehler, e);
+      GUI.getStatusBar().setErrorText(fehler);
+    }
+    
+    return "bezeichnung";
+  }
+
+  public String getBuchungartSortOrder()
+  {
+    try
+    {
+      switch (Einstellungen.getEinstellung().getBuchungsartSort())
+      {
+        case BuchungsartSort.NACH_NUMMER:
+          return "ORDER BY nummer";
+        default:
+          return "ORDER BY bezeichnung";
+      }
+    }
+    catch (RemoteException e)
+    {
+      String fehler = "Keine Buchungssortierung hinterlegt.";
+      Logger.error(fehler, e);
+      GUI.getStatusBar().setErrorText(fehler);
+    }
+    
+    return "ORDER BY bezeichnung";
+  }
+  
+  public DBIterator<Buchungsart> getFilteredBuchungsart() throws RemoteException
+  {
+    DBIterator<Buchungsart> it = Einstellungen.getDBService()
+        .createList(Buchungsart.class);
+    it.setOrder("ORDER BY nummer");
+    // Do not allow to select oneself
+    if (getBuchungsart().getID() != null) it.addFilter("id != " + getBuchungsart().getID());
+    it.addFilter("(spende = false OR spende IS NULL)");
+    it.addFilter("(steuersatz = 0 OR steuersatz IS NULL)");
+
+    return it;
+  }
+  
   public Input getBuchungsklasse() throws RemoteException
   {
     if (buchungsklasse != null)
@@ -152,31 +345,11 @@ public class BuchungsartControl extends AbstractControl
     }
     DBIterator<Buchungsklasse> list = Einstellungen.getDBService()
         .createList(Buchungsklasse.class);
-    if (Einstellungen.getEinstellung()
-        .getBuchungsartSort() == BuchungsartSort.NACH_NUMMER)
-    {
-      list.setOrder("ORDER BY nummer");
-    }
-    else
-    {
-      list.setOrder("ORDER BY bezeichnung");
-    }
+    list.setOrder(getBuchungartSortOrder());
     buchungsklasse = new SelectInput(list,
         getBuchungsart().getBuchungsklasse());
     buchungsklasse.setValue(getBuchungsart().getBuchungsklasse());
-    switch (Einstellungen.getEinstellung().getBuchungsartSort())
-    {
-      case BuchungsartSort.NACH_NUMMER:
-        buchungsklasse.setAttribute("nrbezeichnung");
-        break;
-      case BuchungsartSort.NACH_BEZEICHNUNG_NR:
-        buchungsklasse.setAttribute("bezeichnungnr");
-        break;
-      default:
-        buchungsklasse.setAttribute("bezeichnung");
-        break;
-    }
-
+    buchungsklasse.setAttribute(getBuchungartAttribute());
     buchungsklasse.setPleaseChoose("Bitte auswählen");
     return buchungsklasse;
   }
@@ -211,6 +384,16 @@ public class BuchungsartControl extends AbstractControl
         b.setBuchungsklasse(null);
       }
       b.setSpende((Boolean) spende.getValue());
+      double steuersatzValue = (SteuersatzBuchungsart) steuersatz.getValue() == null ? 0 : ((SteuersatzBuchungsart) steuersatz.getValue()).getSteuersatz();
+      b.setSteuersatz(steuersatzValue);
+      if (steuer_buchungsart.getValue() instanceof Buchungsart) 
+      {
+        b.setSteuerBuchungsart((String) ((Buchungsart) steuer_buchungsart.getValue()).getID());
+      }
+      else
+      {
+        b.setSteuerBuchungsart(null);
+      }
 
       try
       {
@@ -274,22 +457,52 @@ public class BuchungsartControl extends AbstractControl
           }
           if (o instanceof Integer)
           {
-            Integer art = (Integer) o;
-            switch (art.intValue())
-            {
-              case 0:
-                return "Einnahme";
-              case 1:
-                return "Ausgabe";
-              case 2:
-                return "Umbuchung";
-            }
+            return ArtBuchungsart.get((Integer) o);
           }
           return "ungültig";
         }
       }, false, Column.ALIGN_LEFT);
       buchungsartList.addColumn("Buchungsklasse", "buchungsklasse");
       buchungsartList.addColumn("Spende", "spende", new JaNeinFormatter());
+      buchungsartList.addColumn("Steuersatz", "steuersatz", new Formatter()
+      {
+        @Override
+        public String format(Object o)
+        {
+          if (o == null)
+          {
+            return "";
+          }
+          if (o instanceof Double)
+          {
+            return SteuersatzBuchungsart.get((Double) o);
+          }
+          return "ungültig";
+        }
+      }, false, Column.ALIGN_RIGHT);
+      buchungsartList.addColumn("Steuer Buchungsart", "steuer_buchungsart", new Formatter()
+      {
+        @Override
+        public String format(Object o)
+        {
+          if (o == null)
+          {
+            return "";
+          }
+          if (o instanceof String)
+          {
+            try {
+              DBIterator<Buchungsart> steuer_buchungsart = Einstellungen.getDBService().createList(Buchungsart.class);
+              steuer_buchungsart.addFilter("id = " + (String) o);
+              return steuer_buchungsart.next().getNummer() + "";
+              
+            } catch (RemoteException e) {
+              return "";
+            }
+          }
+          return "ungültig";
+        }
+      }, false, Column.ALIGN_RIGHT);
       buchungsartList.setContextMenu(new BuchungsartMenu());
       buchungsartList.setRememberColWidths(true);
       buchungsartList.setRememberOrder(true);
@@ -378,6 +591,10 @@ public class BuchungsartControl extends AbstractControl
           reporter.addHeaderColumn("Buchungsklasse", Element.ALIGN_LEFT, 80,
               BaseColor.LIGHT_GRAY);
           reporter.addHeaderColumn("Spende", Element.ALIGN_CENTER, 20,
+              BaseColor.LIGHT_GRAY);          
+          reporter.addHeaderColumn("Steuersatz", Element.ALIGN_CENTER, 25,
+              BaseColor.LIGHT_GRAY);                        
+          reporter.addHeaderColumn("Steuer Buchungsart", Element.ALIGN_CENTER, 30,
               BaseColor.LIGHT_GRAY);
           reporter.createHeader();
           while (it.hasNext())
@@ -385,20 +602,7 @@ public class BuchungsartControl extends AbstractControl
             Buchungsart b = it.next();
             reporter.addColumn(b.getNummer() + "", Element.ALIGN_RIGHT);
             reporter.addColumn(b.getBezeichnung(), Element.ALIGN_LEFT);
-            String arttxt = "";
-            switch (b.getArt())
-            {
-              case 0:
-                arttxt = "Einnahme";
-                break;
-              case 1:
-                arttxt = "Ausgabe";
-                break;
-              case 2:
-                arttxt = "Umbuchung";
-                break;
-            }
-            reporter.addColumn(arttxt, Element.ALIGN_LEFT);
+            reporter.addColumn(ArtBuchungsart.get(b.getArt()), Element.ALIGN_LEFT);
             if (b.getBuchungsklasse() != null)
             {
               reporter.addColumn(b.getBuchungsklasse().getBezeichnung(),
@@ -409,6 +613,13 @@ public class BuchungsartControl extends AbstractControl
               reporter.addColumn("", Element.ALIGN_LEFT);
             }
             reporter.addColumn(b.getSpende());
+            reporter.addColumn(SteuersatzBuchungsart.get(b.getSteuersatz()), Element.ALIGN_RIGHT);
+            if (b.getSteuerBuchungsart() != null) {
+              reporter.addColumn(b.getSteuerBuchungsart().getNummer() + "", Element.ALIGN_RIGHT);
+            }
+            else {
+              reporter.addColumn("", Element.ALIGN_LEFT);
+            }
           }
           reporter.closeTable();
           reporter.close();

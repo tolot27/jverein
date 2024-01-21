@@ -17,8 +17,6 @@
 
 package de.jost_net.JVerein.gui.action;
 
-import java.rmi.RemoteException;
-
 import de.jost_net.JVerein.Messaging.BuchungMessage;
 import de.jost_net.JVerein.gui.control.BuchungsControl;
 import de.jost_net.JVerein.gui.dialogs.BuchungsartZuordnungDialog;
@@ -29,6 +27,7 @@ import de.willuhn.jameica.gui.GUI;
 import de.willuhn.jameica.system.Application;
 import de.willuhn.logging.Logger;
 import de.willuhn.util.ApplicationException;
+import de.willuhn.jameica.system.OperationCanceledException;
 
 /**
  * Kontoauszugsinformationen zuordnen.
@@ -75,16 +74,16 @@ public class BuchungKontoauszugZuordnungAction implements Action
       {
         return;
       }
-      try
-      {
-        KontoauszugZuordnungDialog kaz = new KontoauszugZuordnungDialog(
-            BuchungsartZuordnungDialog.POSITION_MOUSE, b[0].getAuszugsnummer(),
-            b[0].getBlattnummer());
-        kaz.open();
-        Integer auszugsnummer = kaz.getAuszugsnummerWert();
-        Integer blattnummer = kaz.getBlattnummerWert();
-        int counter = 0;
+      KontoauszugZuordnungDialog kaz = new KontoauszugZuordnungDialog(
+          BuchungsartZuordnungDialog.POSITION_MOUSE, b[0].getAuszugsnummer(),
+          b[0].getBlattnummer());
+      kaz.open();
+      Integer auszugsnummer = kaz.getAuszugsnummerWert();
+      Integer blattnummer = kaz.getBlattnummerWert();
+      int counter = 0;
 
+      if (!kaz.getAbort())
+      {
         for (Buchung buchung : b)
         {
           boolean protect = ((buchung.getAuszugsnummer() != null && buchung
@@ -114,19 +113,16 @@ public class BuchungKontoauszugZuordnungAction implements Action
         GUI.getStatusBar().setSuccessText(
             "Kontoauszugsinformationen zugeordnet" + protecttext);
       }
-      catch (Exception e)
-      {
-        Logger.error("Fehler", e);
-        GUI.getStatusBar().setErrorText(
-            "Fehler bei der Zuordnung der Kontoauszugsinformationen");
-        return;
-      }
     }
-    catch (RemoteException e)
+    catch (OperationCanceledException oce)
     {
-      String fehler = "Fehler beim Speichern.";
-      GUI.getStatusBar().setErrorText(fehler);
-      Logger.error(fehler, e);
+      throw oce;
+    }
+    catch (Exception e)
+    {
+      Logger.error("Fehler", e);
+      GUI.getStatusBar().setErrorText(
+          "Fehler bei der Zuordnung der Kontoauszugsinformationen");
     }
   }
 }

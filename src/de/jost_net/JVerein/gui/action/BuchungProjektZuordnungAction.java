@@ -17,8 +17,6 @@
 
 package de.jost_net.JVerein.gui.action;
 
-import java.rmi.RemoteException;
-
 import de.jost_net.JVerein.gui.control.BuchungsControl;
 import de.jost_net.JVerein.gui.dialogs.ProjektAuswahlDialog;
 import de.jost_net.JVerein.rmi.Buchung;
@@ -26,6 +24,7 @@ import de.jost_net.JVerein.rmi.Projekt;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.GUI;
 import de.willuhn.jameica.gui.dialogs.AbstractDialog;
+import de.willuhn.jameica.system.OperationCanceledException;
 import de.willuhn.logging.Logger;
 import de.willuhn.util.ApplicationException;
 
@@ -65,39 +64,66 @@ public class BuchungProjektZuordnungAction implements Action
       {
         return;
       }
-      try
-      {
-        ProjektAuswahlDialog pad = new ProjektAuswahlDialog(
-            AbstractDialog.POSITION_CENTER, b);
-        Projekt open = pad.open();
 
+      ProjektAuswahlDialog pad = new ProjektAuswahlDialog(
+          AbstractDialog.POSITION_CENTER, b);
+      Projekt open = pad.open();
+
+      if (!pad.getAbort())
+      {
+        int counter = 0;
         if (open == null)
         {
-          GUI.getStatusBar().setErrorText("Kein Projekt ausgewählt");
-          return;
+          for (Buchung buchung : b)
+          {
+            buchung.setProjekt(null);
+            buchung.store();
+          }
         }
-
-        for (Buchung buchung : b)
+        else
         {
-          buchung.setProjekt(open);
-          buchung.store();
+          for (Buchung buchung : b)
+          {
+            boolean protect = buchung.getProjekt() != null
+                && !pad.getOverride();
+            if (protect)
+            {
+              counter++;
+            }
+            else
+            {
+              buchung.setProjekt(open);
+              buchung.store();
+            }
+          }
         }
         control.getBuchungsList();
-        GUI.getStatusBar().setSuccessText("Projekt zugeordnet");
-      }
-      catch (Exception e)
-      {
-        Logger.error("Fehler", e);
-        GUI.getStatusBar().setErrorText(
-            "Fehler bei der Zuordnung des Projektes");
-        return;
+        String protecttext = "";
+        if (open == null)
+        {
+          GUI.getStatusBar().setSuccessText("Projekte gelöscht");
+        }
+        else
+        {
+          if (counter > 0)
+          {
+            protecttext = String
+                .format(", %d Projekte wurden nicht überschrieben. ", counter);
+          }
+          GUI.getStatusBar()
+              .setSuccessText("Projekte zugeordnet" + protecttext);
+        }
       }
     }
-    catch (RemoteException e)
+    catch (OperationCanceledException oce)
     {
-      String fehler = "Fehler beim Speichern.";
-      GUI.getStatusBar().setErrorText(fehler);
-      Logger.error(fehler, e);
+      throw oce;
+    }
+    catch (Exception e)
+    {
+      Logger.error("Fehler", e);
+      GUI.getStatusBar().setErrorText(
+          "Fehler bei der Zuordnung des Projektes");
     }
   }
 }

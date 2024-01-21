@@ -19,6 +19,7 @@ package de.jost_net.JVerein.gui.dialogs;
 
 import java.rmi.RemoteException;
 
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
@@ -29,10 +30,12 @@ import de.jost_net.JVerein.rmi.Projekt;
 import de.willuhn.datasource.rmi.DBIterator;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.dialogs.AbstractDialog;
+import de.willuhn.jameica.gui.input.CheckboxInput;
+import de.willuhn.jameica.gui.input.LabelInput;
 import de.willuhn.jameica.gui.input.SelectInput;
 import de.willuhn.jameica.gui.parts.ButtonArea;
+import de.willuhn.jameica.gui.util.Color;
 import de.willuhn.jameica.gui.util.LabelGroup;
-import de.willuhn.jameica.system.OperationCanceledException;
 
 /**
  * Ein Dialog, ueber den man ein Projekt auswählen kann.
@@ -43,6 +46,14 @@ public class ProjektAuswahlDialog extends AbstractDialog<Projekt>
   private Projekt selected = null;
 
   private SelectInput projekte = null;
+  
+  private CheckboxInput ueberschreiben = null;
+
+  private LabelInput status = null;
+  
+  private boolean abort = false;
+  
+  private boolean ueberschr;
 
   Buchung[] buchungen = null;
 
@@ -51,42 +62,78 @@ public class ProjektAuswahlDialog extends AbstractDialog<Projekt>
     super(position);
     this.buchungen = buchungen;
 
-    setTitle("Projekt auswâ€hlen");
-    setSize(450, 150);
+    setTitle("Projekt auswählen");
+    setSize(400, 175);
   }
 
   @Override
   protected void paint(Composite parent) throws Exception
   {
-    LabelGroup options = new LabelGroup(parent, "Projekte");
-    options.addInput(this.getProjekte());
-    ButtonArea b = new ButtonArea();
-    b.addButton("weiter", new Action()
+    LabelGroup group = new LabelGroup(parent, "");
+    group.addLabelPair("Projekt", this.getProjekte());
+    group.addLabelPair("Projekte überschreiben", getUeberschreiben());
+    group.addLabelPair("", getStatus());
+    
+    ButtonArea buttons = new ButtonArea();
+    buttons.addButton("übernehmen", new Action()
     {
-
       @Override
       public void handleAction(Object context)
       {
+        if (projekte.getValue() == null)
+        {
+          status.setValue("Bitte auswählen");
+          status.setColor(Color.ERROR);
+          return;
+        }
         selected = (Projekt) projekte.getValue();
+        ueberschr = (boolean) getUeberschreiben().getValue();
         close();
       }
-    });
-    b.addButton("abbrechen", new Action()
+    }, null, false, "check.png");
+    buttons.addButton("entfernen", new Action()
+    {
+      @Override
+      public void handleAction(Object context)
+      {
+        selected = null;
+        close();
+      }
+    }, null, false, "undo.png");
+    buttons.addButton("abbrechen", new Action()
     {
 
       @Override
       public void handleAction(Object context)
       {
-        throw new OperationCanceledException();
+        abort = true;
+        close();
+      }
+    }, null, false, "stop-circle.png");
+    getShell().addListener(SWT.Close,new Listener()
+    {
+      public void handleEvent(Event event)
+      {
+        abort = true;
       }
     });
-    b.paint(parent);
+    buttons.paint(parent);
   }
 
   @Override
   protected Projekt getData() throws Exception
   {
     return this.selected;
+  }
+  
+  public boolean getAbort()
+  {
+    return abort;
+  }
+  
+  public boolean getOverride()
+  {
+    return ueberschr;
   }
 
   private SelectInput getProjekte() throws RemoteException
@@ -114,7 +161,8 @@ public class ProjektAuswahlDialog extends AbstractDialog<Projekt>
 
     pj.setOrder("ORDER BY bezeichnung");
     this.projekte = new SelectInput(pj, null);
-    this.projekte.setName("Projekt");
+    this.projekte.setValue(null);
+    this.projekte.setPleaseChoose("Bitte Projekt auswählen");
     this.projekte.addListener(new Listener()
     {
 
@@ -125,5 +173,25 @@ public class ProjektAuswahlDialog extends AbstractDialog<Projekt>
       }
     });
     return this.projekte;
+  }
+  
+  private LabelInput getStatus()
+  {
+    if (status != null)
+    {
+      return status;
+    }
+    status = new LabelInput("");
+    return status;
+  }
+
+  private CheckboxInput getUeberschreiben()
+  {
+    if (ueberschreiben != null)
+    {
+      return ueberschreiben;
+    }
+    ueberschreiben = new CheckboxInput(false);
+    return ueberschreiben;
   }
 }

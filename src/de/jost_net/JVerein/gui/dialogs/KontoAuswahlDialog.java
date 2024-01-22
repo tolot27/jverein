@@ -121,7 +121,7 @@ public class KontoAuswahlDialog extends AbstractDialog<Konto>
     konten.paint(parent);
 
     ButtonArea b = new ButtonArea();
-    b.addButton(i18n.tr("übernehmen"), new Action()
+    b.addButton(i18n.tr("Übernehmen"), new Action()
     {
 
       @Override
@@ -134,10 +134,10 @@ public class KontoAuswahlDialog extends AbstractDialog<Konto>
         choosen = (Konto) o;
         close();
       }
-    });
+    }, null, false, "ok.png");
     if (keinkonto)
     {
-      b.addButton("kein Konto", new Action()
+      b.addButton("Alle Konten", new Action()
       {
 
         @Override
@@ -146,9 +146,9 @@ public class KontoAuswahlDialog extends AbstractDialog<Konto>
           choosen = null;
           close();
         }
-      });
+      }, null, false, "list.png");
     }
-    b.addButton("abbrechen", new Action()
+    b.addButton("Abbrechen", new Action()
     {
 
       @Override
@@ -156,7 +156,7 @@ public class KontoAuswahlDialog extends AbstractDialog<Konto>
       {
         throw new OperationCanceledException();
       }
-    });
+    }, null, false, "process-stop.png");
     b.paint(parent);
   }
 

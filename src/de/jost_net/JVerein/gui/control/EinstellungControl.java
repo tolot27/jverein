@@ -171,6 +171,8 @@ public class EinstellungControl extends AbstractControl
   private CheckboxInput unterdrueckungohnebuchung;
 
   private CheckboxInput kontonummer_in_buchungsliste;
+  
+  private IntegerInput unterdrueckunglaenge;
 
   private TextInput smtp_server;
 
@@ -926,6 +928,16 @@ public class EinstellungControl extends AbstractControl
         .setName("Listen: Buchungsarten ohne Buchung unterdrücken");
     return unterdrueckungohnebuchung;
   }
+  
+  public IntegerInput getUnterdrueckungLaenge() throws RemoteException
+  {
+    if (null == unterdrueckunglaenge)
+    {
+      unterdrueckunglaenge = new IntegerInput(
+          Einstellungen.getEinstellung().getUnterdrueckungLaenge());
+    }
+    return unterdrueckunglaenge;
+  }  
   
   public CheckboxInput getKontonummerInBuchungsliste() throws RemoteException 
   {
@@ -1897,6 +1909,8 @@ public class EinstellungControl extends AbstractControl
       e.setAutoBuchunguebernahme((Boolean) autobuchunguebernahme.getValue());
       e.setUnterdrueckungOhneBuchung((Boolean) unterdrueckungohnebuchung
           .getValue());
+      Integer ulength = (Integer) unterdrueckunglaenge.getValue();
+      e.setUnterdrueckungLaenge(ulength);
       e.setKontonummerInBuchungsliste((Boolean) kontonummer_in_buchungsliste.getValue());
       e.store();
       Einstellungen.setEinstellung(e);

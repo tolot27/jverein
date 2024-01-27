@@ -20,6 +20,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import com.schlevoigt.JVerein.util.Misc;
+
 import de.jost_net.JVerein.Einstellungen;
 import de.jost_net.JVerein.gui.dialogs.BuchungUebernahmeProtokollDialog;
 import de.jost_net.JVerein.rmi.Buchung;
@@ -164,6 +166,11 @@ public class Buchungsuebernahme
               continue;
             zweck += "\r\n" + s.trim();
           }
+        }
+        // Beautify zweck
+        if (Einstellungen.getEinstellung().getAutomatischeBuchungskorrekturHibiscus())
+        {
+          zweck = Misc.getBuchungsZweckKorrektur(zweck, true);
         }
         if (zweck != null && zweck.length() > 500)
         {

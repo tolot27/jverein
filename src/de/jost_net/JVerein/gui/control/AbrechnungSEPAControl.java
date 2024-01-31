@@ -262,7 +262,8 @@ public class AbrechnungSEPAControl extends AbstractControl
     Abrechnungsausgabe aus = Abrechnungsausgabe.getByKey(settings
         .getInt("abrechnungsausgabe", Abrechnungsausgabe.SEPA_DATEI.getKey()));
     if (aus != Abrechnungsausgabe.SEPA_DATEI
-        && aus != Abrechnungsausgabe.HIBISCUS)
+        && aus != Abrechnungsausgabe.HIBISCUS
+        && aus != Abrechnungsausgabe.KEINE_DATEI)
     {
       aus = Abrechnungsausgabe.HIBISCUS;
     }
@@ -430,12 +431,8 @@ public class AbrechnungSEPAControl extends AbstractControl
 
             monitor.setPercentComplete(100);
             monitor.setStatus(ProgressMonitor.STATUS_DONE);
-            if (abupar.abbuchungsausgabe == Abrechnungsausgabe.SEPA_DATEI)
-            {
-              GUI.getStatusBar().setSuccessText(String.format("Abrechnung durchgeführt, SEPA-Datei %s geschrieben.", abupar.sepafileRCUR.getAbsolutePath()));
-            } else {
-              GUI.getStatusBar().setSuccessText("Abrechnung durchgeführt, Hibiscus-Lastschrift geschrieben.");
-            }
+            GUI.getStatusBar().setSuccessText("Abrechnung durchgeführt" + abupar.getText());
+
           }
           catch (ApplicationException ae)
           {
@@ -451,9 +448,16 @@ public class AbrechnungSEPAControl extends AbstractControl
             {
               Logger.error(String.format("error while creating %s", abupar.sepafileRCUR.getAbsolutePath()), e);
               ae = new ApplicationException(String.format("Fehler beim Erstellen der Abbuchungsdatei: %s", abupar.sepafileRCUR.getAbsolutePath()), e);
-            } else {
+            } 
+            else if (abupar.abbuchungsausgabe == Abrechnungsausgabe.HIBISCUS)
+            {
               Logger.error("error while creating debit in Hibiscus", e);
               ae = new ApplicationException("Fehler beim Erstellen der Hibiscus-Lastschrift", e);
+            } 
+            else
+            {
+              Logger.error("error during operation", e);
+              ae = new ApplicationException("Fehler beim Abrechnungslauf", e);
             }
             GUI.getStatusBar().setErrorText(ae.getMessage());
             throw ae;

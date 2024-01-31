@@ -19,15 +19,15 @@ package de.jost_net.JVerein.keys;
 /**
  * Abrechnungsausgabe
  */
-public enum Abrechnungsausgabe
+public enum Ct1Ausgabe
 {
 
-  SEPA_DATEI(1, "Datei"), HIBISCUS(2, "Hibiscus"), KEINE_DATEI(3, "Keine");
+  SEPA_DATEI(1, "Datei"), HIBISCUS(2, "Hibiscus");
   private final String text;
 
   private final int key;
 
-  Abrechnungsausgabe(int key, String text)
+  Ct1Ausgabe(int key, String text)
   {
     this.key = key;
     this.text = text;
@@ -43,9 +43,9 @@ public enum Abrechnungsausgabe
     return text;
   }
 
-  public static Abrechnungsausgabe getByKey(int key)
+  public static Ct1Ausgabe getByKey(int key)
   {
-    for (Abrechnungsausgabe ara : Abrechnungsausgabe.values())
+    for (Ct1Ausgabe ara : Ct1Ausgabe.values())
     {
       if (ara.getKey() == key)
       {

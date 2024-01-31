@@ -16,6 +16,7 @@
  **********************************************************************/
 package de.jost_net.JVerein.io;
 
+import java.math.RoundingMode;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -154,10 +155,12 @@ public class AbrechnungSEPA
     }
 
     ArrayList<Zahler> z = lastschrift.getZahler();
-    if (param.abbuchungsausgabe == Abrechnungsausgabe.SEPA_DATEI)
+    // Wenn keine Buchungen vorhanden sind, wird kein File erzeugt.
+    if ((param.abbuchungsausgabe == Abrechnungsausgabe.SEPA_DATEI) && !z.isEmpty())
     {
       writeSepaFile(param, lastschrift, z);
       monitor.log(String.format("SEPA-Datei %s geschrieben.", param.sepafileRCUR.getAbsolutePath()));
+      param.setText(String.format(", SEPA-Datei %s geschrieben.", param.sepafileRCUR.getAbsolutePath()));
     }
 
     BigDecimal summemitgliedskonto = new BigDecimal("0");
@@ -246,8 +249,13 @@ public class AbrechnungSEPA
     }
     if (param.abbuchungsausgabe == Abrechnungsausgabe.HIBISCUS)
     {
-      buchenHibiscus(param, z);
-      monitor.log("Hibiscus-Lastschrift erzeugt.");
+      // Wenn keine Buchungen vorhanden sind, wird nichts an Hibiscus übergeben.
+      if (z.size() != 0)
+      {
+        buchenHibiscus(param, z);
+        monitor.log("Hibiscus-Lastschrift erzeugt.");
+        param.setText(String.format(", Hibiscus-Lastschrift erzeugt."));
+      }
     }
     if (param.pdffileRCUR != null)
     {
@@ -293,17 +301,17 @@ public class AbrechnungSEPA
         {
           list.addFilter(
               "(zahlungsrhytmus = ? or zahlungsrhytmus = ? or zahlungsrhytmus = ?)",
-              new Object[] { new Integer(Zahlungsrhythmus.HALBJAEHRLICH),
-                  new Integer(Zahlungsrhythmus.VIERTELJAEHRLICH),
-                  new Integer(Zahlungsrhythmus.MONATLICH) });
+              new Object[] { Integer.valueOf(Zahlungsrhythmus.HALBJAEHRLICH),
+                  Integer.valueOf(Zahlungsrhythmus.VIERTELJAEHRLICH),
+                  Integer.valueOf(Zahlungsrhythmus.MONATLICH) });
         }
         if (param.abbuchungsmodus == Abrechnungsmodi.JAVIMO)
         {
           list.addFilter(
               "(zahlungsrhytmus = ? or zahlungsrhytmus = ? or zahlungsrhytmus = ?)",
-              new Object[] { new Integer(Zahlungsrhythmus.JAEHRLICH),
-                  new Integer(Zahlungsrhythmus.VIERTELJAEHRLICH),
-                  new Integer(Zahlungsrhythmus.MONATLICH) });
+              new Object[] { Integer.valueOf(Zahlungsrhythmus.JAEHRLICH),
+                  Integer.valueOf(Zahlungsrhythmus.VIERTELJAEHRLICH),
+                  Integer.valueOf(Zahlungsrhythmus.MONATLICH) });
         }
         if (param.abbuchungsmodus == Abrechnungsmodi.VIMO)
         {
@@ -443,7 +451,7 @@ public class AbrechnungSEPA
         zahler.setPersonId(m.getID());
         zahler.setPersonTyp(JVereinZahlerTyp.MITGLIED);
         zahler.setBetrag(
-            new BigDecimal(betr).setScale(2, BigDecimal.ROUND_HALF_UP));
+            new BigDecimal(betr).setScale(2, RoundingMode.HALF_UP));
         new BIC(m.getBic()); // Prüfung des BIC
         zahler.setBic(m.getBic());
         new IBAN(m.getIban()); // Prüfung der IBAN
@@ -538,7 +546,7 @@ public class AbrechnungSEPA
             zahler.setPersonId(m.getID());
             zahler.setPersonTyp(JVereinZahlerTyp.MITGLIED);
             zahler.setBetrag(new BigDecimal(z.getBetrag()).setScale(2,
-                BigDecimal.ROUND_HALF_UP));
+                RoundingMode.HALF_UP));
             new BIC(m.getBic());
             new IBAN(m.getIban());
             zahler.setBic(m.getBic());
@@ -615,7 +623,7 @@ public class AbrechnungSEPA
         zahler.setPersonId(kt.getID());
         zahler.setPersonTyp(JVereinZahlerTyp.KURSTEILNEHMER);
         zahler.setBetrag(new BigDecimal(kt.getBetrag()).setScale(2,
-            BigDecimal.ROUND_HALF_UP));
+            RoundingMode.HALF_UP));
         new BIC(kt.getBic());
         new IBAN(kt.getIban());
         zahler.setBic(kt.getBic());
@@ -662,9 +670,6 @@ public class AbrechnungSEPA
 
   private void writeSepaFile(AbrechnungSEPAParam param, Basislastschrift lastschrift, ArrayList<Zahler> alle_zahler) throws Exception
   {
-    if (alle_zahler.isEmpty()) {
-      return;
-    }
     Properties ls_properties = new Properties();
     ls_properties.setProperty("src.bic", lastschrift.getBIC());
     ls_properties.setProperty("src.iban", lastschrift.getIBAN());
@@ -705,11 +710,6 @@ public class AbrechnungSEPA
   private void buchenHibiscus(AbrechnungSEPAParam param, ArrayList<Zahler> z)
       throws ApplicationException
   {
-    if (z.size() == 0)
-    {
-      // Wenn keine Buchungen vorhanden sind, wird nichts an Hibiscus übergeben.
-      return;
-    }
     try
     {
       SepaLastschrift[] lastschriften = new SepaLastschrift[z.size()];
@@ -838,7 +838,7 @@ public class AbrechnungSEPA
       }
       if (buchungsart != null)
       {
-        buchung.setBuchungsart(new Long(buchungsart.getID()));
+        buchung.setBuchungsart(Long.valueOf(buchungsart.getID()));
       }
       buchung.store();
     }

@@ -19,9 +19,12 @@ package de.jost_net.JVerein.gui.action;
 import java.io.File;
 import java.io.IOException;
 import java.rmi.RemoteException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Map;
+
+import com.schlevoigt.JVerein.util.Misc;
 
 import de.jost_net.JVerein.Einstellungen;
 import de.jost_net.JVerein.Variable.AllgemeineMap;
@@ -44,6 +47,7 @@ import de.jost_net.JVerein.util.JVDateFormatTT;
 import de.jost_net.JVerein.util.JVDateFormatTTMMJJJJ;
 import de.jost_net.JVerein.util.StringTool;
 import de.willuhn.jameica.gui.Action;
+import de.willuhn.jameica.gui.formatter.CurrencyFormatter;
 import de.willuhn.logging.Logger;
 import de.willuhn.util.ApplicationException;
 import jonelo.NumericalChameleon.SpokenNumbers.GermanNumber;
@@ -251,29 +255,58 @@ public class FormularAnzeigeAction implements Action
       ArrayList<Date> buda = new ArrayList<>();
       ArrayList<String> zg = new ArrayList<>();
       ArrayList<String> zg1 = new ArrayList<>();
+      ArrayList<Double> nettobetrag = new ArrayList<>();
+      ArrayList<String> steuersatz = new ArrayList<>();
+      ArrayList<Double> steuerbetrag = new ArrayList<>();
       ArrayList<Double> betrag = new ArrayList<>();
       ArrayList<Double> ist = new ArrayList<>();
       ArrayList<Double> differenz = new ArrayList<>();
+
       // Buchung 1
       buda.add(new Date());
       zg.add("Testverwendungszweck");
       zg1.add("Testverwendungszweck");
-      betrag.add(150.10d);
+      
+      DecimalFormat format = new DecimalFormat("0");
+      CurrencyFormatter formatter = new CurrencyFormatter("%",format);
+
+      double steuer = 7d;
+      steuersatz.add("("+formatter.format(steuer)+")");
+      double netto = 200d / (1d + (steuer / 100d));
+      nettobetrag.add(netto);
+      steuerbetrag.add(200d - netto);
+      betrag.add(200d);
       ist.add(0d);
-      differenz.add(-150.10d);
+      differenz.add(-200d);
+      
       // Buchung 2
       buda.add(new Date());
       zg.add("2. Verwendungszweck");
       zg1.add("2. Verwendungszweck");
-      betrag.add(10d);
-      ist.add(5d);
-      differenz.add(-5d);
+      steuer = 19d;
+      steuersatz.add("("+formatter.format(steuer)+")");
+      netto = 49.99d / (1d + (steuer / 100d));
+      nettobetrag.add(netto);
+      steuerbetrag.add(49.99d - netto);
+      betrag.add(49.99d);
+      ist.add(10d);
+      differenz.add(-39.99d);
+      
       // Summe
-      zg1.add("Summe");
-      zg.add("Summe");
-      betrag.add(160.1d);
-      differenz.add(155.1d);
-      ist.add(5d);
+      if (Einstellungen.getEinstellung().getOptiert())
+      {
+        zg1.add("Rechnungsbetrag inkl. USt.");
+        zg.add("Rechnungsbetrag inkl. USt.");
+      }
+      else
+      {
+        zg1.add("Summe");
+        zg.add("Summe");
+      }
+      betrag.add(249.99d);
+      differenz.add(239.99d);
+      ist.add(10d);
+
       map.put(FormularfeldControl.BUCHUNGSDATUM, buda.toArray());
       map.put(FormularfeldControl.ZAHLUNGSGRUND, zg.toArray());
       map.put(FormularfeldControl.ZAHLUNGSGRUND1, zg1.toArray());
@@ -281,6 +314,9 @@ public class FormularAnzeigeAction implements Action
       map.put(MitgliedskontoVar.BUCHUNGSDATUM.getName(), buda.toArray());
       map.put(MitgliedskontoVar.ZAHLUNGSGRUND.getName(), zg.toArray());
       map.put(MitgliedskontoVar.ZAHLUNGSGRUND1.getName(), zg1.toArray());
+      map.put(MitgliedskontoVar.NETTOBETRAG.getName(), nettobetrag.toArray());
+      map.put(MitgliedskontoVar.STEUERSATZ.getName(), steuersatz.toArray());
+      map.put(MitgliedskontoVar.STEUERBETRAG.getName(), steuerbetrag.toArray());
       map.put(MitgliedskontoVar.BETRAG.getName(), betrag.toArray());
       map.put(MitgliedskontoVar.IST.getName(), ist.toArray());
       map.put(MitgliedskontoVar.DIFFERENZ.getName(), differenz.toArray());

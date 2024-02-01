@@ -558,10 +558,20 @@ public class MitgliedskontoControl extends AbstractControl
       Zahlungsweg zw = (Zahlungsweg) getZahlungsweg().getValue();
       mkto.setZahlungsweg(zw.getKey());
       mkto.setZweck1((String) getZweck1().getValue());
+
+      double steuersatz = 0d;
       if (getBuchungsart().getValue() != null)
       {
         mkto.setBuchungsart((Buchungsart) getBuchungsart().getValue());
+        Buchungsart bart = mkto.getBuchungsart();
+        steuersatz = bart.getSteuersatz();
       }
+      // Update taxes and netto amount
+      mkto.setSteuersatz(steuersatz);
+      double netto = ((Double) getBetrag().getValue() / (1d + (steuersatz / 100d)));
+      mkto.setNettobetrag(netto);
+      mkto.setSteuerbetrag((Double) getBetrag().getValue() - netto);
+      
       mkto.store();
       GUI.getStatusBar().setSuccessText("Mitgliedskonto gespeichert");
     }

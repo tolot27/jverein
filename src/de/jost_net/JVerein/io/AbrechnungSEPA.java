@@ -814,10 +814,19 @@ public class AbrechnungSEPA
       mk.setDatum(datum);
       mk.setMitglied(mitglied);
       mk.setZweck1(zweck1);
+      double steuersatz = 0d;
       if (buchungsart != null)
       {
         mk.setBuchungsart(buchungsart);
+        steuersatz = buchungsart.getSteuersatz();
       }
+      // Set tax rate
+      mk.setSteuersatz(steuersatz);
+      // Set bill amount without taxes
+      double nettobetrag = (steuersatz != 0d) ? (betrag / (1d + (steuersatz / 100d))) : betrag;
+      mk.setNettobetrag(nettobetrag);
+      // Set tax amount
+      mk.setSteuerbetrag(betrag - nettobetrag);    
       mk.store();
     }
     if (haben)

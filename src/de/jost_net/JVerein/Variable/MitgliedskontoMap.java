@@ -17,13 +17,18 @@
 package de.jost_net.JVerein.Variable;
 
 import java.rmi.RemoteException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import de.jost_net.JVerein.Einstellungen;
 import de.jost_net.JVerein.gui.control.FormularfeldControl;
 import de.jost_net.JVerein.rmi.Mitgliedskonto;
+import de.jost_net.JVerein.util.JVDateFormatTTMMJJJJ;
+import de.willuhn.jameica.gui.formatter.CurrencyFormatter;
+import de.willuhn.jameica.gui.formatter.DateFormatter;
 
 public class MitgliedskontoMap
 {
@@ -49,9 +54,15 @@ public class MitgliedskontoMap
     ArrayList<Date> buda = new ArrayList<>();
     ArrayList<String> zg = new ArrayList<>();
     ArrayList<String> zg1 = new ArrayList<>();
+    ArrayList<Double> nettobetrag = new ArrayList<>();
+    ArrayList<String> steuersatz = new ArrayList<>();
+    ArrayList<Double> steuerbetrag = new ArrayList<>();
     ArrayList<Double> betrag = new ArrayList<>();
     ArrayList<Double> ist = new ArrayList<>();
     ArrayList<Double> differenz = new ArrayList<>();
+    
+    DecimalFormat format = new DecimalFormat("0");
+    CurrencyFormatter formatter = new CurrencyFormatter("%",format);
     double summe = 0;
     double saldo = 0;
     double suist = 0;
@@ -60,7 +71,10 @@ public class MitgliedskontoMap
       buda.add(mkto.getDatum());
       zg.add(mkto.getZweck1());
       zg1.add(mkto.getZweck1());
-      betrag.add(new Double(mkto.getBetrag()));
+      nettobetrag.add(Double.valueOf(mkto.getNettobetrag()));
+      steuersatz.add("("+formatter.format(Double.valueOf(mkto.getSteuersatz()))+")");
+      steuerbetrag.add(Double.valueOf(mkto.getSteuerbetrag()));
+      betrag.add(Double.valueOf(mkto.getBetrag()));
       ist.add(mkto.getIstSumme());
       suist += mkto.getIstSumme();
       differenz.add(mkto.getBetrag() - mkto.getIstSumme());
@@ -69,8 +83,16 @@ public class MitgliedskontoMap
     }
     if (buda.size() > 1)
     {
-      zg1.add("Summe");
-      zg.add("Summe");
+      if (Einstellungen.getEinstellung().getOptiert())
+      {
+        zg1.add("Rechnungsbetrag inkl. USt.");
+        zg.add("Rechnungsbetrag inkl. USt.");
+      }
+      else
+      {
+        zg1.add("Summe");
+        zg.add("Summe");
+      }
       betrag.add(summe);
       differenz.add(saldo);
       ist.add(suist);
@@ -82,6 +104,9 @@ public class MitgliedskontoMap
     map.put(MitgliedskontoVar.BUCHUNGSDATUM.getName(), buda.toArray());
     map.put(MitgliedskontoVar.ZAHLUNGSGRUND.getName(), zg.toArray());
     map.put(MitgliedskontoVar.ZAHLUNGSGRUND1.getName(), zg1.toArray());
+    map.put(MitgliedskontoVar.NETTOBETRAG.getName(), nettobetrag.toArray());
+    map.put(MitgliedskontoVar.STEUERSATZ.getName(), steuersatz.toArray());
+    map.put(MitgliedskontoVar.STEUERBETRAG.getName(), steuerbetrag.toArray());
     map.put(MitgliedskontoVar.BETRAG.getName(), betrag.toArray());
     map.put(MitgliedskontoVar.IST.getName(), ist.toArray());
     map.put(MitgliedskontoVar.DIFFERENZ.getName(), differenz.toArray());
@@ -106,6 +131,9 @@ public class MitgliedskontoMap
     map.put(MitgliedskontoVar.BUCHUNGSDATUM.getName(), mk.getDatum());
     map.put(MitgliedskontoVar.ZAHLUNGSGRUND.getName(), mk.getZweck1());
     map.put(MitgliedskontoVar.ZAHLUNGSGRUND1.getName(), mk.getZweck1());
+    map.put(MitgliedskontoVar.NETTOBETRAG.getName(), mk.getNettobetrag());
+    map.put(MitgliedskontoVar.STEUERSATZ.getName(), mk.getSteuersatz());
+    map.put(MitgliedskontoVar.STEUERBETRAG.getName(), mk.getSteuerbetrag());
     map.put(MitgliedskontoVar.BETRAG.getName(), mk.getBetrag());
     map.put(MitgliedskontoVar.IST.getName(), mk.getIstSumme());
     map.put(MitgliedskontoVar.DIFFERENZ.getName(),

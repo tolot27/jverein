@@ -17,17 +17,26 @@
 package de.jost_net.JVerein.gui.control;
 
 import java.rmi.RemoteException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 
 import de.jost_net.JVerein.Einstellungen;
 import de.jost_net.JVerein.gui.action.KontoAction;
+import de.jost_net.JVerein.gui.formatter.BuchungsartFormatter;
 import de.jost_net.JVerein.gui.input.KontoInput;
 import de.jost_net.JVerein.gui.menu.KontoMenu;
+import de.jost_net.JVerein.keys.BuchungsartSort;
+import de.jost_net.JVerein.keys.ArtBuchungsart;
+import de.jost_net.JVerein.rmi.Buchungsart;
 import de.jost_net.JVerein.rmi.Konto;
 import de.jost_net.JVerein.util.JVDateFormatTTMMJJJJ;
 import de.willuhn.datasource.rmi.DBIterator;
 import de.willuhn.datasource.rmi.DBService;
 import de.willuhn.datasource.rmi.ObjectNotFoundException;
+import de.willuhn.datasource.rmi.ResultSetExtractor;
 import de.willuhn.jameica.gui.AbstractControl;
 import de.willuhn.jameica.gui.AbstractView;
 import de.willuhn.jameica.gui.GUI;
@@ -35,13 +44,16 @@ import de.willuhn.jameica.gui.Part;
 import de.willuhn.jameica.gui.formatter.DateFormatter;
 import de.willuhn.jameica.gui.formatter.Formatter;
 import de.willuhn.jameica.gui.input.DateInput;
+import de.willuhn.jameica.gui.input.Input;
 import de.willuhn.jameica.gui.input.SelectInput;
 import de.willuhn.jameica.gui.input.TextInput;
 import de.willuhn.jameica.gui.parts.Column;
 import de.willuhn.jameica.gui.parts.TablePart;
+import de.willuhn.jameica.gui.parts.table.FeatureSummary;
 import de.willuhn.jameica.hbci.Settings;
 import de.willuhn.logging.Logger;
 import de.willuhn.util.ApplicationException;
+//import de.jost_net.JVerein.keys.ArtBuchungsart;
 
 public class KontoControl extends AbstractControl
 {
@@ -61,6 +73,10 @@ public class KontoControl extends AbstractControl
   private SelectInput hibiscusid;
 
   private Konto konto;
+  
+  private SelectInput buchungsart;
+  
+  private int unterdrueckunglaenge = 0;
 
   public KontoControl(AbstractView view)
   {
@@ -166,6 +182,7 @@ public class KontoControl extends AbstractControl
       k.setBezeichnung((String) getBezeichnung().getValue());
       k.setEroeffnung((Date) getEroeffnung().getValue());
       k.setAufloesung((Date) getAufloesung().getValue());
+      k.setBuchungsart(getSelectedBuchungsArtId());
       if (getHibiscusId().getValue() == null)
       {
         k.setHibiscusId(-1);
@@ -227,10 +244,12 @@ public class KontoControl extends AbstractControl
         new DateFormatter(new JVDateFormatTTMMJJJJ()));
     kontenList.addColumn("Konto-Auflösung", "aufloesung",
         new DateFormatter(new JVDateFormatTTMMJJJJ()));
+    kontenList.addColumn("Gegenbuchung-Buchungsart", "buchungsart", 
+        new BuchungsartFormatter());
     kontenList.setRememberColWidths(true);
     kontenList.setContextMenu(new KontoMenu());
     kontenList.setRememberOrder(true);
-    kontenList.setSummary(true);
+    kontenList.addFeature(new FeatureSummary());
     return kontenList;
   }
 
@@ -246,4 +265,158 @@ public class KontoControl extends AbstractControl
     }
   }
 
+  public Input getBuchungsart() throws RemoteException
+  {
+    if (buchungsart != null)
+    {
+      return buchungsart;
+    }
+    ArrayList<Buchungsart> liste = new ArrayList<>();
+    unterdrueckunglaenge = Einstellungen.getEinstellung().getUnterdrueckungLaenge();
+    final DBService service = Einstellungen.getDBService();
+    
+    ResultSetExtractor rs = new ResultSetExtractor()
+    {
+      @Override
+      public Object extract(ResultSet rs) throws RemoteException, SQLException
+      {
+        ArrayList<Buchungsart> list = new ArrayList<Buchungsart>();
+        while (rs.next())
+        {
+          list.add(
+            (Buchungsart) service.createObject(Buchungsart.class, rs.getString(1)));
+        }
+        return list;
+      }
+    };
+    if (unterdrueckunglaenge > 0)
+    {
+      Calendar cal = Calendar.getInstance();
+      Date db = cal.getTime();
+      cal.add(Calendar.MONTH, - unterdrueckunglaenge);
+      Date dv = cal.getTime();
+      String sql = "SELECT DISTINCT ba.* FROM buchungsart ba ";
+      sql += "LEFT JOIN konto k ON k.buchungsart = ba.id, buchung bu ";
+      if (konto.getBuchungsart() == null)
+      {
+        sql += "WHERE (k.buchungsart IS NULL) ";
+      }
+      else
+      {
+        sql += "WHERE (k.buchungsart IS NULL OR k.buchungsart = ?) ";
+      }
+      sql += "AND ba.id IS NOT NULL AND ba.id = bu.buchungsart ";
+      sql += "AND bu.datum >= ? AND bu.datum <= ? ";
+      sql += "AND ba.art = ? ";
+      if (Einstellungen.getEinstellung()
+          .getBuchungsartSort() == BuchungsartSort.NACH_NUMMER)
+      {
+        sql += "ORDER BY nummer";
+      }
+      else
+      {
+        sql += "ORDER BY bezeichnung";
+      }
+
+      if (konto.getBuchungsart() == null)
+      {
+        @SuppressWarnings("unchecked")
+        ArrayList<Buchungsart> ergebnis = (ArrayList<Buchungsart>) service.execute(sql,
+            new Object[] { dv, db, ArtBuchungsart.UMBUCHUNG }, rs);    
+        addToList(liste, ergebnis);
+      }
+      else
+      {
+        @SuppressWarnings("unchecked")
+        ArrayList<Buchungsart> ergebnis = (ArrayList<Buchungsart>) service.execute(sql,
+            new Object[] { konto.getBuchungsartId(), dv, db, ArtBuchungsart.UMBUCHUNG }, rs);
+        addToList(liste, ergebnis);
+      }
+    }
+    else
+    {
+      String sql = "SELECT DISTINCT ba.* FROM buchungsart ba ";
+      sql += "LEFT JOIN konto k ON k.buchungsart = ba.id ";
+      if (konto.getBuchungsart() == null)
+      {
+        sql += "WHERE (k.buchungsart IS NULL) ";
+      }
+      else
+      {
+        sql += "WHERE (k.buchungsart IS NULL OR k.buchungsart = ?) ";
+      }
+      sql += "AND ba.art = ? ";
+      if (Einstellungen.getEinstellung()
+          .getBuchungsartSort() == BuchungsartSort.NACH_NUMMER)
+      {
+        sql += "ORDER BY nummer";
+      }
+      else
+      {
+        sql += "ORDER BY bezeichnung";
+      }
+
+      if (konto.getBuchungsart() == null)
+      {
+        @SuppressWarnings("unchecked")
+        ArrayList<Buchungsart> ergebnis = (ArrayList<Buchungsart>) service.execute(sql,
+            new Object[] { ArtBuchungsart.UMBUCHUNG }, rs);    
+        addToList(liste, ergebnis);
+      }
+      else
+      {
+        @SuppressWarnings("unchecked")
+        ArrayList<Buchungsart> ergebnis = (ArrayList<Buchungsart>) service.execute(sql,
+            new Object[] { konto.getBuchungsartId(), ArtBuchungsart.UMBUCHUNG }, rs);
+        addToList(liste, ergebnis);
+      }
+    }
+    
+    Buchungsart b = konto.getBuchungsart();
+    buchungsart = new SelectInput(liste, b);
+    buchungsart.setPleaseChoose("Bitte wählen...");
+
+    switch (Einstellungen.getEinstellung().getBuchungsartSort())
+    {
+      case BuchungsartSort.NACH_NUMMER:
+        buchungsart.setAttribute("nrbezeichnung");
+        break;
+      case BuchungsartSort.NACH_BEZEICHNUNG_NR:
+        buchungsart.setAttribute("bezeichnungnr");
+        break;
+      default:
+        buchungsart.setAttribute("bezeichnung");
+        break;
+    }
+    
+    return buchungsart;
+  }
+  
+  private Long getSelectedBuchungsArtId() throws ApplicationException
+  {
+    try
+    {
+      Buchungsart buchungsArt = (Buchungsart) getBuchungsart().getValue();
+      if (null == buchungsArt)
+        return null;
+      Long id = Long.valueOf(buchungsArt.getID());
+      return id;
+    }
+    catch (RemoteException ex)
+    {
+      final String meldung = "Gewählte Buchungsart kann nicht ermittelt werden";
+      Logger.error(meldung, ex);
+      throw new ApplicationException(meldung, ex);
+    }
+  }
+  
+  private void addToList(ArrayList<Buchungsart> liste, ArrayList<Buchungsart> ergebnis)
+  {
+    int size = ergebnis.size();
+    for (int i = 0; i < size; i++)
+    {
+      liste.add(ergebnis.get(i));
+    }
+  }
+  
 }

@@ -22,6 +22,7 @@ import de.jost_net.JVerein.gui.action.BuchungAction;
 import de.jost_net.JVerein.gui.action.BuchungBuchungsartZuordnungAction;
 import de.jost_net.JVerein.gui.action.BuchungDeleteAction;
 import de.jost_net.JVerein.gui.action.BuchungDuplizierenAction;
+import de.jost_net.JVerein.gui.action.BuchungGegenbuchungAction;
 import de.jost_net.JVerein.gui.action.BuchungKontoauszugZuordnungAction;
 import de.jost_net.JVerein.gui.action.BuchungMitgliedskontoZuordnungAction;
 import de.jost_net.JVerein.gui.action.BuchungNeuAction;
@@ -29,6 +30,8 @@ import de.jost_net.JVerein.gui.action.BuchungProjektZuordnungAction;
 import de.jost_net.JVerein.gui.action.SplitBuchungAction;
 import de.jost_net.JVerein.gui.control.BuchungsControl;
 import de.jost_net.JVerein.rmi.Buchung;
+import de.jost_net.JVerein.keys.ArtBuchungsart;
+import de.jost_net.JVerein.keys.SplitbuchungTyp;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.parts.CheckedContextMenuItem;
 import de.willuhn.jameica.gui.parts.CheckedSingleContextMenuItem;
@@ -52,6 +55,8 @@ public class BuchungMenu extends ContextMenu
     addItem(new CheckedSingleContextMenuItem("Bearbeiten",
         new BuchungAction(false), "text-x-generic.png"));
     addItem(new SingleBuchungItem("Duplizieren", new BuchungDuplizierenAction(),
+        "edit-copy.png"));
+    addItem(new SingleGegenBuchungItem("Gegenbuchung", new BuchungGegenbuchungAction(),
         "edit-copy.png"));
     addItem(new SingleBuchungItem("Splitbuchung", new SplitBuchungAction(),
         "edit-copy.png"));
@@ -128,4 +133,38 @@ public class BuchungMenu extends ContextMenu
       return false;
     }
   }
+    
+  private static class SingleGegenBuchungItem extends CheckedSingleContextMenuItem
+  {
+    private SingleGegenBuchungItem(String text, Action action, String icon)
+    {
+      super(text, action, icon);
+    }
+
+    @Override
+    public boolean isEnabledFor(Object o)
+    {
+      if (o instanceof Buchung)
+      {
+        Buchung b = (Buchung) o;
+        try
+        {
+          if ((b.getSplitId() != null) && (b.getSplitTyp() != SplitbuchungTyp.SPLIT))
+          {
+            return false;
+          }
+          if (b.getBuchungsart() != null)
+          {
+            return b.getBuchungsart().getArt() == ArtBuchungsart.UMBUCHUNG;
+          }
+        }
+        catch (RemoteException e)
+        {
+          Logger.error("Fehler", e);
+        }
+      }
+      return false;
+    }
+  }
+  
 }

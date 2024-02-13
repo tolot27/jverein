@@ -228,6 +228,11 @@ public class BuchungsControl extends AbstractControl
     {
       b.setBetrag((Double) getBetrag().getValue());
     }
+    else
+    {
+      // Nötig um für den Check den letzten gesetzten Wert zu löschen
+      b.setBetragNull();
+    }
     b.setZweck((String) getZweck().getValue());
     b.setDatum((Date) getDatum().getValue());
     b.setArt((String) getArt().getValue());
@@ -308,6 +313,7 @@ public class BuchungsControl extends AbstractControl
     {
       konto.focus();
     }
+    konto.setMandatory(true);
     return konto;
   }
 
@@ -380,7 +386,7 @@ public class BuchungsControl extends AbstractControl
       return betrag;
     }
 
-    if (getBuchung().isNewObject() && getBuchung().getBetrag() == 0d)
+    if (getBuchung().isNewObject() && getBuchung().isBetragNull())
     {
       betrag = new DecimalInput(Einstellungen.DECIMALFORMAT);
     }
@@ -389,6 +395,7 @@ public class BuchungsControl extends AbstractControl
       betrag = new DecimalInput(getBuchung().getBetrag(),
           Einstellungen.DECIMALFORMAT);
     }
+    betrag.setMandatory(true);
     return betrag;
   }
 
@@ -413,6 +420,7 @@ public class BuchungsControl extends AbstractControl
     this.datum = new DateInput(d, new JVDateFormatTTMMJJJJ());
     this.datum.setTitle("Datum");
     this.datum.setText("Bitte Datum wählen");
+    datum.setMandatory(true);
     return datum;
   }
 

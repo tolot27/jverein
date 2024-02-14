@@ -56,11 +56,11 @@ public class VCardTool
         vcard.setBirthday(bd);
       }
 
-      if (m.getGeschlecht().equalsIgnoreCase("M"))
+      if (m.getGeschlecht().equalsIgnoreCase("m"))
       {
         vcard.setGender(Gender.male());
       }
-      if (m.getGeschlecht().equalsIgnoreCase("W"))
+      if (m.getGeschlecht().equalsIgnoreCase("w"))
       {
         vcard.setGender(Gender.female());
       }
@@ -68,7 +68,7 @@ public class VCardTool
       {
         vcard.setGender(Gender.other());
       }
-      if (m.getPersonenart().equals("n"))
+      if (m.getPersonenart().equalsIgnoreCase("n"))
       {
         StructuredName n = new StructuredName();
         n.setFamily(m.getName());

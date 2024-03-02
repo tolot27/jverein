@@ -19,12 +19,11 @@ package de.jost_net.JVerein.gui.view;
 import de.jost_net.JVerein.gui.action.DokumentationAction;
 import de.jost_net.JVerein.gui.control.ProjektSaldoControl;
 import de.willuhn.jameica.gui.AbstractView;
-import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.GUI;
-import de.willuhn.jameica.gui.parts.Button;
 import de.willuhn.jameica.gui.parts.ButtonArea;
+import de.jost_net.JVerein.gui.parts.QuickAccessPart;
+import de.jost_net.JVerein.gui.parts.VonBisPart;
 import de.willuhn.jameica.gui.util.LabelGroup;
-import de.willuhn.util.ApplicationException;
 
 public class ProjektSaldoView extends AbstractView
 {
@@ -35,31 +34,21 @@ public class ProjektSaldoView extends AbstractView
     GUI.getView().setTitle("Projekte-Saldo");
 
     final ProjektSaldoControl control = new ProjektSaldoControl(this);
+    
+    VonBisPart vpart = new VonBisPart(control, true);
+    vpart.paint(this.getParent());
+    
+    QuickAccessPart qpart = new QuickAccessPart(control, true);
+    qpart.paint(this.getParent());
 
-    LabelGroup group = new LabelGroup(getParent(), "Zeitraum");
-    group.addLabelPair("Von", control.getDatumvon());
-    group.addLabelPair("Bis", control.getDatumbis());
+    LabelGroup group = new LabelGroup(getParent(), "Saldo", true);
+    group.addPart(control.getSaldoList());
 
     ButtonArea buttons = new ButtonArea();
-    Button button = new Button("Suchen", new Action()
-    {
-      @Override
-      public void handleAction(Object context) throws ApplicationException
-      {
-        control.getSaldoList();
-      }
-    }, null, true, "search.png");
-    buttons.addButton(button);
-    buttons.paint(this.getParent());
-
-    LabelGroup group2 = new LabelGroup(getParent(), "Saldo", true);
-    group2.addPart(control.getSaldoList());
-
-    ButtonArea buttons2 = new ButtonArea();
-    buttons2.addButton("Hilfe", new DokumentationAction(),
+    buttons.addButton("Hilfe", new DokumentationAction(),
         DokumentationUtil.PROJEKTE, false, "question-circle.png");
-    buttons2.addButton(control.getStartAuswertungButton());
-    buttons2.paint(this.getParent());
+    buttons.addButton(control.getStartAuswertungButton());
+    buttons.paint(this.getParent());
   }
 
 }

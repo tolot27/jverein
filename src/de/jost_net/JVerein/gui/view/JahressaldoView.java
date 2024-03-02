@@ -18,13 +18,12 @@ package de.jost_net.JVerein.gui.view;
 
 import de.jost_net.JVerein.gui.action.DokumentationAction;
 import de.jost_net.JVerein.gui.control.JahressaldoControl;
+import de.jost_net.JVerein.gui.parts.QuickAccessPart;
+import de.jost_net.JVerein.gui.parts.VonBisPart;
 import de.willuhn.jameica.gui.AbstractView;
-import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.GUI;
-import de.willuhn.jameica.gui.parts.Button;
 import de.willuhn.jameica.gui.parts.ButtonArea;
 import de.willuhn.jameica.gui.util.LabelGroup;
-import de.willuhn.util.ApplicationException;
 
 public class JahressaldoView extends AbstractView
 {
@@ -36,29 +35,19 @@ public class JahressaldoView extends AbstractView
 
     final JahressaldoControl control = new JahressaldoControl(this);
 
-    LabelGroup group = new LabelGroup(getParent(), "Jahr");
-    group.addLabelPair("Jahr", control.getSuchJahr());
+    VonBisPart vpart = new VonBisPart(control, false);
+    vpart.paint(this.getParent());
+    
+    QuickAccessPart part = new QuickAccessPart(control, false);
+    part.paint(this.getParent());
 
-    ButtonArea buttons = new ButtonArea();
-    Button button = new Button("Suchen", new Action()
-    {
-
-      @Override
-      public void handleAction(Object context) throws ApplicationException
-      {
-        control.getSaldoList();
-      }
-    }, null, true, "search.png");
-    buttons.addButton(button);
-    buttons.paint(this.getParent());
-
-    LabelGroup group2 = new LabelGroup(getParent(), "Saldo");
+    LabelGroup group2 = new LabelGroup(getParent(), "Saldo", true);
     group2.addPart(control.getSaldoList());
 
-    ButtonArea buttons2 = new ButtonArea();
-    buttons2.addButton("Hilfe", new DokumentationAction(),
+    ButtonArea buttons = new ButtonArea();
+    buttons.addButton("Hilfe", new DokumentationAction(),
         DokumentationUtil.JAHRESSALDO, false, "question-circle.png");
-    buttons2.addButton(control.getStartAuswertungButton());
-    buttons2.paint(this.getParent());
+    buttons.addButton(control.getStartAuswertungButton());
+    buttons.paint(this.getParent());
   }
 }

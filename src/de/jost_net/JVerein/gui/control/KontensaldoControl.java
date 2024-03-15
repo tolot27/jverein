@@ -26,7 +26,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.FileDialog;
 
 import de.jost_net.JVerein.Einstellungen;
-import de.jost_net.JVerein.gui.parts.JahressaldoList;
+import de.jost_net.JVerein.gui.parts.KontensaldoList;
 import de.jost_net.JVerein.io.JahressaldoPDF;
 import de.jost_net.JVerein.io.SaldoZeile;
 import de.jost_net.JVerein.util.Dateiname;
@@ -44,12 +44,12 @@ import de.willuhn.logging.Logger;
 import de.willuhn.util.ApplicationException;
 import de.willuhn.util.ProgressMonitor;
 
-public class JahressaldoControl extends SaldoControl
+public class KontensaldoControl extends SaldoControl
 {
 
-  private JahressaldoList saldoList;
+  private KontensaldoList saldoList;
 
-  public JahressaldoControl(AbstractView view)
+  public KontensaldoControl(AbstractView view)
   {
     super(view);
   }
@@ -85,18 +85,15 @@ public class JahressaldoControl extends SaldoControl
         settings.setAttribute("bis",
             new JVDateFormatTTMMJJJJ().format(getDatumbis().getDate()));
       }
-      
-      Calendar cal = Calendar.getInstance();
-      cal.setTime(getDatumvon().getDate());
-      int jahr = cal.get(Calendar.YEAR);
 
       if (saldoList == null)
       {
-        saldoList = new JahressaldoList(null, new Geschaeftsjahr(jahr));
+          saldoList = new KontensaldoList(null, 
+              getDatumvon().getDate(), getDatumbis().getDate());
       }
       else
       {
-        saldoList.setGeschaeftsjahr(new Geschaeftsjahr(jahr));
+        saldoList.setVonBis(getDatumvon().getDate(), getDatumbis().getDate());
         ArrayList<SaldoZeile> zeile = saldoList.getInfo();
         saldoList.removeAll();
         for (SaldoZeile sz : zeile)
@@ -106,10 +103,6 @@ public class JahressaldoControl extends SaldoControl
       }
     }
     catch (RemoteException e)
-    {
-      throw new ApplicationException("Fehler aufgetreten " + e.getMessage());
-    }
-    catch (ParseException e)
     {
       throw new ApplicationException("Fehler aufgetreten " + e.getMessage());
     }

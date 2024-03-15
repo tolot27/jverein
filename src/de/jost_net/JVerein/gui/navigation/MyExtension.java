@@ -55,7 +55,7 @@ import de.jost_net.JVerein.gui.action.FamilienbeitragAction;
 import de.jost_net.JVerein.gui.action.FelddefinitionenAction;
 import de.jost_net.JVerein.gui.action.FormularListeAction;
 import de.jost_net.JVerein.gui.action.JahresabschlussListAction;
-import de.jost_net.JVerein.gui.action.JahressaldoAction;
+import de.jost_net.JVerein.gui.action.KontensaldoAction;
 import de.jost_net.JVerein.gui.action.JubilaeenAction;
 import de.jost_net.JVerein.gui.action.KontenrahmenExportAction;
 import de.jost_net.JVerein.gui.action.KontenrahmenImportAction;
@@ -211,8 +211,8 @@ public class MyExtension implements Extension
           new BuchungsklasseSaldoAction(), "euro-sign.png"));
       buchfuehrung.addChild(new MyItem(buchfuehrung, "Projektsaldo",
           new ProjektSaldoAction(), "euro-sign.png"));
-      buchfuehrung.addChild(new MyItem(buchfuehrung, "Jahressaldo",
-          new JahressaldoAction(), "euro-sign.png"));
+      buchfuehrung.addChild(new MyItem(buchfuehrung, "Kontensaldo",
+          new KontensaldoAction(), "euro-sign.png"));
       buchfuehrung.addChild(new MyItem(buchfuehrung, "Jahresabschlüsse",
           new JahresabschlussListAction(), "euro-sign.png"));
       jverein.addChild(buchfuehrung);
@@ -261,9 +261,6 @@ public class MyExtension implements Extension
               new AdministrationEinstellungenStatistikAction(), "wrench.png"));
       administration.addChild(administrationEinstellungen);
 
-      administration.addChild(new MyItem(administration, "Beitragsgruppen",
-          new BeitragsgruppeSucheAction(), "clone.png"));
-
       NavigationItem einstellungenbuchfuehrung = null;
       einstellungenbuchfuehrung = new MyItem(einstellungenbuchfuehrung,
           "Buchführung", null);
@@ -284,6 +281,9 @@ public class MyExtension implements Extension
           "Projekte", new ProjektListAction(), "screwdriver.png"));
       administration.addChild(einstellungenbuchfuehrung);
 
+
+      administration.addChild(new MyItem(administration, "Beitragsgruppen",
+          new BeitragsgruppeSucheAction(), "clone.png"));
       administration
           .addChild(new MyItem(administration, "Eigenschaften-Gruppen",
               new EigenschaftGruppeListeAction(), "ellipsis-v.png"));

@@ -427,7 +427,7 @@ public class MitgliedControl extends AbstractControl
     {
       Adresstyp def = (Adresstyp) Einstellungen.getDBService()
           .createObject(Adresstyp.class, "1");
-      suchadresstyp = new SelectInput(PseudoIterator.asList(at), def);
+      suchadresstyp = new SelectInput(at != null ? PseudoIterator.asList(at) : null, def);
     }
     else
     {
@@ -444,7 +444,7 @@ public class MitgliedControl extends AbstractControl
         def = (Adresstyp) Einstellungen.getDBService().createObject(
             Adresstyp.class, settings.getString("suchadresstyp", "2"));*/
       }
-      suchadresstyp = new SelectInput(PseudoIterator.asList(at), def);
+      suchadresstyp = new SelectInput(at != null ? PseudoIterator.asList(at) : null, def);
     }
     suchadresstyp.setName("Mitgliedstyp");
     suchadresstyp.setPleaseChoose("Bitte auswählen");
@@ -485,7 +485,7 @@ public class MitgliedControl extends AbstractControl
         .createList(Adresstyp.class);
     at.addFilter("jvereinid != 1 or jvereinid is null");
     at.setOrder("order by bezeichnung");
-    adresstyp = new SelectInput(PseudoIterator.asList(at), getMitglied().getAdresstyp());
+    adresstyp = new SelectInput(at != null ? PseudoIterator.asList(at) : null, getMitglied().getAdresstyp());
     adresstyp.setName("Mitgliedstyp");
     return adresstyp;
   }
@@ -1184,7 +1184,7 @@ public class MitgliedControl extends AbstractControl
       list.addFilter("beitragsart <> ? or beitragsart IS NULL",
           new Object[] { ArtBeitragsart.FAMILIE_ANGEHOERIGER.getKey() });
     }
-    beitragsgruppe = new SelectInput(PseudoIterator.asList(list), getMitglied().getBeitragsgruppe());
+    beitragsgruppe = new SelectInput(list != null ? PseudoIterator.asList(list) : null, getMitglied().getBeitragsgruppe());
     beitragsgruppe.setName("Beitragsgruppe");
     beitragsgruppe.setValue(getMitglied().getBeitragsgruppe());
     beitragsgruppe.setMandatory(true);
@@ -1382,7 +1382,7 @@ public class MitgliedControl extends AbstractControl
     DBIterator<Beitragsgruppe> list = Einstellungen.getDBService()
         .createList(Beitragsgruppe.class);
     list.setOrder("ORDER BY bezeichnung");
-    beitragsgruppeausw = new SelectInput(PseudoIterator.asList(list), bg);
+    beitragsgruppeausw = new SelectInput(list != null ? PseudoIterator.asList(list) : null, bg);
     beitragsgruppeausw.setName("Beitragsgruppe");
     beitragsgruppeausw.setAttribute("bezeichnung");
     beitragsgruppeausw.setPleaseChoose("Bitte auswählen");
@@ -1464,7 +1464,7 @@ public class MitgliedControl extends AbstractControl
     Mitglied zahlmitglied = (Mitglied) Einstellungen.getDBService()
         .createObject(Mitglied.class, suche);
 
-    zahler = new SelectInput(PseudoIterator.asList(zhl), zahlmitglied);
+    zahler = new SelectInput(zhl != null ? PseudoIterator.asList(zhl) : null, zahlmitglied);
     zahler.setAttribute("namevorname");
     zahler.setPleaseChoose("Bitte auswählen");
     zahler.addListener(new Listener()

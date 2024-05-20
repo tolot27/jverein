@@ -529,7 +529,7 @@ public class SpendenbescheinigungControl extends AbstractControl
           GUI.getStatusBar().setSuccessText("Spendenbescheinigung erstellt");
           FileViewer.show(file);
         }
-        catch (RemoteException e)
+        catch (Exception e)
         {
           Logger.error(e.getMessage());
           throw new ApplicationException(

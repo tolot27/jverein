@@ -293,7 +293,8 @@ public class KursteilnehmerControl extends FilterControl
     this.mandatdatum.setTitle("Datum des Mandats");
     this.mandatdatum.setName("Datum des Mandats");
     this.mandatdatum.setText("Bitte Datum des Mandats wählen");
-    mandatdatum.setName("Datum des Mandats");
+    this.mandatdatum.setName("Datum des Mandats");
+    this.mandatdatum.setMandatory(true);
     return mandatdatum;
   }
 
@@ -451,7 +452,7 @@ public class KursteilnehmerControl extends FilterControl
       k.setIban((String) getIBAN().getValue());
       k.setBic((String) getBIC().getValue());
       k.setBetrag((Double) getBetrag().getValue());
-      if (Einstellungen.getEinstellung().getGeburtsdatumPflicht())
+      if (Einstellungen.getEinstellung().getKursteilnehmerGebGesPflicht())
       {
         k.setGeburtsdatum((Date) getGeburtsdatum().getValue());
         k.setGeschlecht((String) getGeschlecht().getValue());

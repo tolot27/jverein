@@ -54,6 +54,8 @@ public class DokumentationUtil
 
   public static final String LEHRGANG = PRE + FUNKTIONEN + MITGLIEDER  + "lehrgange";
 
+  public static final String FREIESFORMULAR = PRE + FUNKTIONEN + DRUCKMAIL + "freiesformular";
+  
   public static final String MITGLIEDSUCHE = PRE + FUNKTIONEN + MITGLIEDER + "content/mitglieder";
   
   public static final String MITGLIED = PRE + FUNKTIONEN + MITGLIEDER + "content/grunddaten";
@@ -79,7 +81,7 @@ public class DokumentationUtil
       + "zusatzbetrage-importieren";
   
   
-  // Buchführung
+  // BuchfÃ¼hrung
   public static final String ANFANGSBESTAENDE = PRE + FUNKTIONEN + BUCHF + "anfangsbestand";
 
   public static final String BUCHUNGEN = PRE + FUNKTIONEN + BUCHF + "buchungen";
@@ -169,7 +171,7 @@ public class DokumentationUtil
   public static final String ADRESSTYPEN = PRE + FUNKTIONEN + ADMIN + ADMMITGLIEDER + "mitgliedstypen";
   
   
-  // Einstellungen Buchführung
+  // Einstellungen BuchfÃ¼hrung
   public static final String BUCHUNGSART = PRE + FUNKTIONEN + ADMIN + ADMBUCHF + "buchungsart.html";
 
   public static final String BUCHUNGSKLASSEN = PRE + FUNKTIONEN + ADMIN + ADMBUCHF + "buchungsklasse";

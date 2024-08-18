@@ -34,6 +34,7 @@ import de.jost_net.JVerein.gui.action.AdministrationEinstellungenRechnungenActio
 import de.jost_net.JVerein.gui.action.AdministrationEinstellungenSpendenbescheinigungenAction;
 import de.jost_net.JVerein.gui.action.AdministrationEinstellungenStatistikAction;
 import de.jost_net.JVerein.gui.action.NichtMitgliedSucheAction;
+import de.jost_net.JVerein.gui.action.PreNotificationAction;
 import de.jost_net.JVerein.gui.action.MitgliedstypListAction;
 import de.jost_net.JVerein.gui.action.AnfangsbestandListAction;
 import de.jost_net.JVerein.gui.action.ArbeitseinsatzUeberpruefungAction;
@@ -211,7 +212,7 @@ public class MyExtension implements Extension
       jverein.addChild(auswertung);
 
       NavigationItem mail = null;
-      mail = new MyItem(mail, "Drucken & Mailen", null);
+      mail = new MyItem(mail, "Druck & Mail", null);
       mail.addChild(new MyItem(mail, "Rechnungen",
           new MitgliedskontoRechnungAction(), "document-print.png"));
       mail.addChild(new MyItem(mail, "Mahnungen",
@@ -220,6 +221,8 @@ public class MyExtension implements Extension
           new KontoauszugAction(), "document-print.png"));
       mail.addChild(new MyItem(mail, "Freie Formulare",
           new FreieFormulareAction(), "document-print.png"));
+      mail.addChild(new MyItem(mail, "Pre-Notification",
+          new PreNotificationAction(), "document-print.png"));
       mail.addChild(new MyItem(mail, "Spendenbescheinigungen",
           new SpendenbescheinigungSendAction(), "document-print.png"));
       mail.addChild(

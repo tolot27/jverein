@@ -567,14 +567,21 @@ public class MitgliedControl extends FilterControl
     {
       return zahlungsweg;
     }
+    ArrayList<Zahlungsweg> weg = Zahlungsweg.getArray();
+    if(beitragsgruppe != null)
+    {
+    	Beitragsgruppe bg = (Beitragsgruppe) beitragsgruppe.getValue();
+    	if(bg != null && bg.getBeitragsArt() != ArtBeitragsart.FAMILIE_ANGEHOERIGER)
+    		weg.remove(new Zahlungsweg(Zahlungsweg.VOLLZAHLER));
+    }
     if (getMitglied().getZahlungsweg() != null)
     {
-      zahlungsweg = new SelectInput(Zahlungsweg.getArray(),
+      zahlungsweg = new SelectInput(weg,
           new Zahlungsweg(getMitglied().getZahlungsweg().intValue()));
     }
     else
     {
-      zahlungsweg = new SelectInput(Zahlungsweg.getArray(),
+      zahlungsweg = new SelectInput(weg,
           new Zahlungsweg(Einstellungen.getEinstellung().getZahlungsweg()));
     }
     zahlungsweg.setName("Zahlungsweg");
@@ -624,6 +631,17 @@ public class MitgliedControl extends FilterControl
       }
     });
     return zahlungsweg;
+  }
+  
+  private void refreshZahlungsweg() throws RemoteException
+  {
+    if(beitragsgruppe == null || zahlungsweg == null)
+      return;
+    ArrayList<Zahlungsweg> weg = Zahlungsweg.getArray();
+    Beitragsgruppe bg = (Beitragsgruppe) beitragsgruppe.getValue();
+    if(bg != null && bg.getBeitragsArt() != ArtBeitragsart.FAMILIE_ANGEHOERIGER)
+      weg.remove(new Zahlungsweg(Zahlungsweg.VOLLZAHLER));
+    zahlungsweg.setList(weg);
   }
 
   // Lösche alle Daten aus der Bankverbindungsmaske
@@ -1073,7 +1091,7 @@ public class MitgliedControl extends FilterControl
             }
           }
           else if (bg != null
-              && bg.getBeitragsArt() == ArtBeitragsart.FAMILIE_ZAHLER)
+              && bg.getBeitragsArt() != ArtBeitragsart.FAMILIE_ANGEHOERIGER)
           {
             boolean ist_neu = getMitglied().getID() == null;
             getFamilienverband().setVisible(!ist_neu);
@@ -1105,8 +1123,8 @@ public class MitgliedControl extends FilterControl
               getZukuenftigeBeitraegeView().setVisible(true);
             }
           }
-
           refreshFamilienangehoerigeTable();
+          refreshZahlungsweg();
 
         }
         catch (RemoteException e)
@@ -1258,7 +1276,7 @@ public class MitgliedControl extends FilterControl
     // Beitragsgruppen ermitteln, die Zahler für andere Mitglieder sind
     DBIterator<Beitragsgruppe> bg = Einstellungen.getDBService()
         .createList(Beitragsgruppe.class);
-    bg.addFilter("beitragsart = ?", ArtBeitragsart.FAMILIE_ZAHLER.getKey());
+    bg.addFilter("beitragsart != ?", ArtBeitragsart.FAMILIE_ANGEHOERIGER.getKey());
     while (bg.hasNext())
     {
       if (cond.length() > 0)
@@ -1271,7 +1289,8 @@ public class MitgliedControl extends FilterControl
     }
     DBIterator<Mitglied> zhl = Einstellungen.getDBService()
         .createList(Mitglied.class);
-    zhl.addFilter(cond.toString());
+    zhl.addFilter("(" + cond.toString() + ")");
+    zhl.addFilter("id != ?",getMitglied().getID());
     MitgliedUtils.setNurAktive(zhl);
     MitgliedUtils.setMitglied(zhl);
     zhl.setOrder("ORDER BY name, vorname");
@@ -1300,7 +1319,7 @@ public class MitgliedControl extends FilterControl
         try
         {
           Mitglied m = (Mitglied) zahler.getValue();
-          if (m.getID() != null)
+          if (m != null && m.getID() != null)
           {
             getMitglied().setZahlerID(Long.valueOf(m.getID()));
           }
@@ -1638,13 +1657,13 @@ public class MitgliedControl extends FilterControl
       public String format(Object o)
       {
         // Alle Familienmitglieder, die eine Zahler-ID eingetragen haben, sind
-        // nicht selbst das zahlende Mitglied.
-        // Der Eintrag ohne zahlerid ist also das zahlende Mitglied.
+        // nicht selbst das vollzahlende Mitglied.
+        // Der Eintrag ohne zahlerid ist also das vollzahlende Mitglied.
         Long m = (Long) o;
         if (m == null)
           return "";
         else
-          return "beitragsbefreites Familienmitglied";
+          return "Familienmitglied";
       }
     });
 

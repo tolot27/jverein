@@ -1229,6 +1229,10 @@ public class BuchungsControl extends AbstractControl
       buchungsList = new BuchungListTablePart(query.get(),
           new BuchungAction(false));
       buchungsList.addColumn("Nr", "id-int");
+      if (Einstellungen.getEinstellung().getDokumentenspeicherung())
+      {
+        buchungsList.addColumn("D", "document");
+      }
       buchungsList.addColumn("S", "splitid", new Formatter()
       {
         @Override

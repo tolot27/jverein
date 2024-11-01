@@ -175,7 +175,7 @@ public class ArbeitseinsatzControl extends AbstractControl
 
   public Button getPDFAusgabeButton()
   {
-    Button b = new Button("PDF-Ausgabe", new Action()
+    Button b = new Button("PDF", new Action()
     {
 
       @Override
@@ -198,7 +198,7 @@ public class ArbeitseinsatzControl extends AbstractControl
 
   public Button getCSVAusgabeButton()
   {
-    Button b = new Button("CSV-Ausgabe", new Action()
+    Button b = new Button("CSV", new Action()
     {
 
       @Override

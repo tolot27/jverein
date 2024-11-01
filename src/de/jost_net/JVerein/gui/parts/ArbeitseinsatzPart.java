@@ -70,6 +70,7 @@ public class ArbeitseinsatzPart implements Part
     this.datum.setTitle("Datum");
     this.datum.setName("Datum");
     this.datum.setText("Datum Arbeitseinsatz wählen");
+    datum.setMandatory(true);
     return datum;
   }
 
@@ -82,6 +83,7 @@ public class ArbeitseinsatzPart implements Part
     stunden = new DecimalInput(arbeitseinsatz.getStunden(), new DecimalFormat(
         "###,###.##"));
     stunden.setName("Stunden");
+    stunden.setMandatory(true);
     return stunden;
   }
 

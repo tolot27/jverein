@@ -2188,9 +2188,8 @@ public class MitgliedControl extends FilterControl
       return eigenschaftenTree;
     }
     eigenschaftenTree = new TreePart(new EigenschaftenNode(mitglied), null);
-    eigenschaftenTree.setCheckable(true);
     eigenschaftenTree
-        .addSelectionListener(new EigenschaftListener(eigenschaftenTree));
+        .addSelectionListener(new EigenschaftListener());
     eigenschaftenTree.setFormatter(new EigenschaftTreeFormatter());
     return eigenschaftenTree;
   }
@@ -2203,6 +2202,9 @@ public class MitgliedControl extends FilterControl
 
       if (eigenschaftenTree != null)
       {
+        ArrayList<?> rootNodes = (ArrayList<?>) eigenschaftenTree.getItems();  // liefert nur den Root
+        EigenschaftenNode root = (EigenschaftenNode) rootNodes.get(0);
+        
         HashMap<String, Boolean> pflichtgruppen = new HashMap<>();
         DBIterator<EigenschaftGruppe> it = Einstellungen.getDBService()
             .createList(EigenschaftGruppe.class);
@@ -2212,18 +2214,12 @@ public class MitgliedControl extends FilterControl
           EigenschaftGruppe eg = it.next();
           pflichtgruppen.put(eg.getID(), Boolean.valueOf(false));
         }
-        for (Object o1 : eigenschaftenTree.getItems())
+        
+        for (EigenschaftenNode checkedNode : root.getCheckedNodes())
         {
-          if (o1 instanceof EigenschaftenNode)
-          {
-            EigenschaftenNode node = (EigenschaftenNode) o1;
-            if (node.getNodeType() == EigenschaftenNode.EIGENSCHAFTEN)
-            {
-              Eigenschaft ei = (Eigenschaft) node.getObject();
-              pflichtgruppen.put(ei.getEigenschaftGruppeId() + "",
-                  Boolean.valueOf(true));
-            }
-          }
+          Eigenschaft ei = (Eigenschaft) checkedNode.getObject();
+          pflichtgruppen.put(ei.getEigenschaftGruppeId() + "",
+              Boolean.valueOf(true));
         }
         for (String key : pflichtgruppen.keySet())
         {
@@ -2245,29 +2241,22 @@ public class MitgliedControl extends FilterControl
           EigenschaftGruppe eg = it.next();
           max1gruppen.put(eg.getID(), Boolean.valueOf(false));
         }
-        for (Object o1 : eigenschaftenTree.getItems())
+        for (EigenschaftenNode checkedNode : root.getCheckedNodes())
         {
-          if (o1 instanceof EigenschaftenNode)
+          Eigenschaft ei = (Eigenschaft) checkedNode.getObject();
+          Boolean m1 = max1gruppen.get(ei.getEigenschaftGruppe().getID());
+          if (m1 != null)
           {
-            EigenschaftenNode node = (EigenschaftenNode) o1;
-            if (node.getNodeType() == EigenschaftenNode.EIGENSCHAFTEN)
+            if (m1)
             {
-              Eigenschaft ei = (Eigenschaft) node.getObject();
-              Boolean m1 = max1gruppen.get(ei.getEigenschaftGruppe().getID());
-              if (m1 != null)
-              {
-                if (m1)
-                {
-                  throw new ApplicationException(String.format(
-                      "In der Eigenschaftengruppe '%s' mehr als ein Eintrag markiert!",
-                      ei.getEigenschaftGruppe().getBezeichnung()));
-                }
-                else
-                {
-                  max1gruppen.put(ei.getEigenschaftGruppe().getID(),
-                      Boolean.valueOf(true));
-                }
-              }
+              throw new ApplicationException(String.format(
+                  "In der Eigenschaftengruppe '%s' mehr als ein Eintrag markiert!",
+                  ei.getEigenschaftGruppe().getBezeichnung()));
+            }
+            else
+            {
+              max1gruppen.put(ei.getEigenschaftGruppe().getID(),
+                  Boolean.valueOf(true));
             }
           }
         }
@@ -2430,6 +2419,8 @@ public class MitgliedControl extends FilterControl
       }
       if (eigenschaftenTree != null)
       {
+        ArrayList<?> rootNodes = (ArrayList<?>) eigenschaftenTree.getItems();  // liefert nur den Root
+        EigenschaftenNode root = (EigenschaftenNode) rootNodes.get(0);
         if (!getMitglied().isNewObject())
         {
           DBIterator<Eigenschaften> it = Einstellungen.getDBService()
@@ -2441,20 +2432,13 @@ public class MitgliedControl extends FilterControl
             ei.delete();
           }
         }
-        for (Object o1 : eigenschaftenTree.getItems())
+        for (EigenschaftenNode checkedNode : root.getCheckedNodes())
         {
-          if (o1 instanceof EigenschaftenNode)
-          {
-            EigenschaftenNode node = (EigenschaftenNode) o1;
-            if (node.getNodeType() == EigenschaftenNode.EIGENSCHAFTEN)
-            {
-              Eigenschaften eig = (Eigenschaften) Einstellungen.getDBService()
-                  .createObject(Eigenschaften.class, null);
-              eig.setEigenschaft(node.getEigenschaft().getID());
-              eig.setMitglied(getMitglied().getID());
-              eig.store();
-            }
-          }
+          Eigenschaften eig = (Eigenschaften) Einstellungen.getDBService()
+              .createObject(Eigenschaften.class, null);
+          eig.setEigenschaft(checkedNode.getEigenschaft().getID());
+          eig.setMitglied(getMitglied().getID());
+          eig.store();
         }
       }
 

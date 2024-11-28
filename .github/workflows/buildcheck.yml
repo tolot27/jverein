@@ -14,7 +14,7 @@ on:
       - 'src/**'
 jobs:
   build:
-    name: Try to build a nightly release incorporating the current pull request
+    name: Try to compile the current pull request
 
     runs-on: ubuntu-latest
 

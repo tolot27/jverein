@@ -51,9 +51,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         path: jverein
-        ref: ${{ github.event.pull_request.head.sha }}
 
     - name: Build openjverein plugin
       id: buildtest
       working-directory: ./
-      run: ant -noinput -buildfile jverein/build/build_ci.xml compile
+      run: ant -noinput -buildfile jverein/build/build.xml compile

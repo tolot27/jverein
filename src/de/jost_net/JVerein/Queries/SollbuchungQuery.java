@@ -314,7 +314,7 @@ public class SollbuchungQuery
       }
     }
 
-    if (!where.isEmpty())
+    if (where.length() > 0)
     {
       sql.append(" WHERE ").append(where);
     }

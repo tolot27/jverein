@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<project basedir=".." default="all" name="All">
+
+  <target name="init" description="inits the build">
+
+    <property environment="env" />
+    <property name="build.dir" value="build" />
+    <buildnumber file="${build.dir}/BUILD" />
+    <xmlproperty file="plugin.xml" collapseattributes="true" />
+
+    <tstamp>
+      <format property="build.timestamp" pattern="yyyyMMdd" />
+    </tstamp>
+
+    <loadproperties srcfile="${build.dir}/build.properties" />
+
+  	<echo message="VERSION: ${plugin.version}" level="info"/>
+    <echo message="BUILD  : ${build.number}" level="info"/>
+    <echo message="JAVA   : ${java.version}" level="info"/>
+
+    <path id="compilepath">
+      <fileset dir="${lib.dir}">
+        <include name="**/*.jar" />
+      </fileset>
+      <fileset dir="../hibiscus/lib">
+        <include name="**/*.jar" />
+      </fileset>
+      <fileset dir="../jameica/lib">
+        <include name="**/*.jar" />
+        <exclude name="apache_xmlrpc/**" />
+        <exclude name="bouncycastle/**" />
+        <exclude name="mckoi/**" />
+        <exclude name="h2/**" />
+        <exclude name="mysql/**" />
+        <exclude name="paperclips/**" />
+        <exclude name="swt/linux/**" />
+        <exclude name="swt/linux-arm64/**" />
+        <exclude name="swt/macos*/**" />
+        <exclude name="swt/win32/**" />
+        <exclude name="swt/win64/**" />
+      </fileset>
+      <pathelement path="../hibiscus/bin" />
+      <pathelement path="../jameica/bin" />
+      <pathelement path="../jameica/releases/jameica-lib.jar" />
+      <pathelement path="../hibiscus/releases/hibiscus-lib.jar" />
+    </path>
+
+    <path id="classpath">
+      <path refid="compilepath" />
+      <pathelement location="${class.dir}" />
+    </path>
+  </target>
+
+  <target name="clean" description="Cleanup">
+    <delete dir="${project.tmp}" />
+    <delete dir="${class.dir}" />
+  </target>
+  
+  <target name="compile" depends="init, clean">
+    <mkdir dir="${class.dir}" />
+    <javac debug="true" includeantruntime="false" debuglevel="lines,vars,source" source="${define.java.version}" target="${define.java.version}" encoding="${define.encoding}" deprecation="off" nowarn="on" destdir="${class.dir}" srcdir="${src.dir}">
+			<classpath refid="compilepath" />
+		</javac>
+  </target>
+
+</project>

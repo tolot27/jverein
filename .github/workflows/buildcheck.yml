@@ -50,9 +50,7 @@ jobs:
       run: |
         sed -i -r 's/deprecation="(true|on)"/deprecation="off"/g' hibiscus/build/build.xml
         ant -noinput -quiet -buildfile hibiscus/build/build.xml jar
-        echo '::warning:: Copying jar file to release directory'
         find hibiscus/releases/ -type f -name hibiscus.jar -exec cp {} hibiscus/releases/hibiscus-lib.jar \;
-        echo '::notice:: finished hibiscus build'
 
     - name: Checkout openjverein
       id: openjverein_checkout

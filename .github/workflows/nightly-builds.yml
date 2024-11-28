@@ -30,9 +30,9 @@ jobs:
         repository: willuhn/jameica
         path: jameica
 
-    - name: Build jameica nightly
+    - name: Build jameica jar based on master
       working-directory: ./
-      run: ant -noinput -buildfile jameica/build/build.xml nightly
+      run: ant -noinput -buildfile jameica/build/build.xml jar
 
     - name: Check out hibiscus
       uses: actions/checkout@v4
@@ -40,9 +40,9 @@ jobs:
         repository: willuhn/hibiscus
         path: hibiscus
 
-    - name: Build hibiscus nightly
+    - name: Build hibiscus jar based on master
       working-directory: ./
-      run: ant -noinput -buildfile hibiscus/build/build.xml nightly
+      run: ant -noinput -buildfile hibiscus/build/build.xml jar
 
     - name: Checkout openjverein
       id: openjverein_checkout

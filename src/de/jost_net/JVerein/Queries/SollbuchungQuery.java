@@ -316,7 +316,7 @@ public class SollbuchungQuery
 
     if (where.length() > 0)
     {
-      sql.append(" WHERE ").append(where);
+      sql.append(" WHERE  ").append(where);
     }
     sql.append(" GROUP BY mitgliedskonto.id");
 

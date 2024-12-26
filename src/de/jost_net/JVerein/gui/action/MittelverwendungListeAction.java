@@ -14,37 +14,17 @@
  * heiner@jverein.de
  * www.jverein.de
  **********************************************************************/
+package de.jost_net.JVerein.gui.action;
 
-package de.jost_net.JVerein.io;
+import de.jost_net.JVerein.gui.view.MittelverwendungListeView;
+import de.willuhn.jameica.gui.Action;
+import de.willuhn.jameica.gui.GUI;
 
-import java.rmi.RemoteException;
-
-public interface IAdresse
+public class MittelverwendungListeAction implements Action
 {
-  /**
-   * N = Natürliche Person, J = Juristische Person
-   */
-  public String getPersonenart() throws RemoteException;
-
-  public String getAnrede() throws RemoteException;
-
-  public String getTitel() throws RemoteException;
-
-  public String getName() throws RemoteException;
-
-  public String getVorname() throws RemoteException;
-
-  public String getStrasse() throws RemoteException;
-
-  public String getAdressierungszusatz() throws RemoteException;
-
-  public String getPlz() throws RemoteException;
-
-  public String getOrt() throws RemoteException;
-
-  public String getStaat() throws RemoteException;
-
-  public String getGeschlecht() throws RemoteException;
-
-  public String getStaatCode() throws RemoteException;
+  @Override
+  public void handleAction(Object context)
+  {
+    GUI.startView(MittelverwendungListeView.class.getName(), null);
+  }
 }

@@ -91,8 +91,6 @@ import de.willuhn.util.ProgressMonitor;
 
 public class AbrechnungSEPA
 {
-  private final Calendar sepagueltigkeit;
-
   private int counter = 0;
 
   public AbrechnungSEPA(AbrechnungSEPAParam param, ProgressMonitor monitor)
@@ -117,8 +115,6 @@ public class AbrechnungSEPA
 
     Abrechnungslauf abrl = getAbrechnungslauf(param);
 
-    sepagueltigkeit = Calendar.getInstance();
-    sepagueltigkeit.add(Calendar.MONTH, -36);
     Basislastschrift lastschrift = new Basislastschrift();
     // Vorbereitung: Allgemeine Informationen einstellen
     lastschrift.setBIC(Einstellungen.getEinstellung().getBic());
@@ -981,19 +977,27 @@ public class AbrechnungSEPA
     {
       return true;
     }
-    Date letzte_lastschrift = m.getLetzteLastschrift();
-    if (letzte_lastschrift != null
-        && letzte_lastschrift.before(sepagueltigkeit.getTime()))
-    {
-      monitor.log(Adressaufbereitung.getNameVorname(m)
-          + ": Letzte Lastschrift ist älter als 36 Monate.");
-      return false;
-    }
+    // Ohne Mandat keine Lastschrift
     if (m.getMandatDatum() == Einstellungen.NODATE)
     {
       monitor.log(Adressaufbereitung.getNameVorname(m)
           + ": Kein Mandat-Datum vorhanden.");
       return false;
+    }
+    // Bei Mandaten älter als 3 Jahre muss es eine Lastschrift
+    // innerhalb der letzten 3 Jahre geben
+    Calendar sepagueltigkeit = Calendar.getInstance();
+    sepagueltigkeit.add(Calendar.MONTH, -36);
+    if (m.getMandatDatum().before(sepagueltigkeit.getTime()))
+    {
+      Date letzte_lastschrift = m.getLetzteLastschrift();
+      if (letzte_lastschrift == null
+          || letzte_lastschrift.before(sepagueltigkeit.getTime()))
+      {
+        monitor.log(Adressaufbereitung.getNameVorname(m)
+            + ": Das Mandat-Datum ist älter als 36 Monate und es erfolgte keine Lastschrift in den letzten 36 Monaten.");
+        return false;
+      }
     }
     return true;
   }

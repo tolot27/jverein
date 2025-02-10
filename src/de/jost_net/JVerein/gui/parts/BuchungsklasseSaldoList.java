@@ -27,6 +27,7 @@ import org.eclipse.swt.widgets.Composite;
 import de.jost_net.JVerein.Einstellungen;
 import de.jost_net.JVerein.io.BuchungsklasseSaldoZeile;
 import de.jost_net.JVerein.keys.ArtBuchungsart;
+import de.jost_net.JVerein.keys.Kontoart;
 import de.jost_net.JVerein.rmi.Buchungsart;
 import de.jost_net.JVerein.rmi.Buchungsklasse;
 import de.willuhn.datasource.rmi.DBIterator;
@@ -48,7 +49,9 @@ public class BuchungsklasseSaldoList extends TablePart implements Part
 	private Date datumvon = null;
 
 	private Date datumbis = null;
-	
+
+  protected static double LIMIT = 0.005;
+
   Double einnahmen;
   Double ausgaben;
   Double umbuchungen;
@@ -317,7 +320,6 @@ public class BuchungsklasseSaldoList extends TablePart implements Part
     suBukUmbuchungen = Double.valueOf(0);
     suBukNetto.clear();
     suBukSteuer.clear();
-    boolean ausgabe = false;
 
     while (buchungsartenIt.hasNext())
     {
@@ -326,38 +328,43 @@ public class BuchungsklasseSaldoList extends TablePart implements Part
       int anz = 0;
       if (!Einstellungen.getEinstellung().getBuchungsklasseInBuchung())
       {
-        sqlc = "select count(*) from buchung, buchungsart "
+        sqlc = "select count(*) from buchung, buchungsart, konto "
             + "where datum >= ? and datum <= ?  "
             + "and buchung.buchungsart = buchungsart.id "
-            + "and buchungsart.id = ?";
-        anz = (Integer) service.execute(sqlc,
-            new Object[] { datumvon, datumbis, buchungsart.getID() }, rsi);
+            + "and buchungsart.id = ? "
+            + "and buchung.konto = konto.id "
+            + "and konto.kontoart < ? ";
+        anz = (Integer) service.execute(sqlc, new Object[] { datumvon, datumbis,
+            buchungsart.getID(), Kontoart.LIMIT.getKey() }, rsi);
       }
       else
       {
         if (buchungsklasseId != null)
         {
           // Buchungen der Buchungsklasse
-          sqlc = "select count(*) from buchung, buchungsart "
+          sqlc = "select count(*) from buchung, buchungsart, konto "
               + "where datum >= ? and datum <= ?  "
               + "and buchung.buchungsart = buchungsart.id "
               + "and buchungsart.id = ? "
-              + "and buchung.buchungsklasse = ? ";
+              + "and buchung.buchungsklasse = ? "
+              + "and buchung.konto = konto.id "
+              + "and konto.kontoart < ? ";
           anz = (Integer) service.execute(sqlc,
               new Object[] { datumvon, datumbis, buchungsart.getID(), 
-                  buchungsklasseId }, rsi);
+                  buchungsklasseId, Kontoart.LIMIT.getKey() }, rsi);
         }
         else
         {
           // Buchungen ohne Buchungsklasse
-          sqlc = "select count(*) from buchung, buchungsart "
+          sqlc = "select count(*) from buchung, buchungsart, konto "
               + "where datum >= ? and datum <= ?  "
               + "and buchung.buchungsart = buchungsart.id "
               + "and buchungsart.id = ? "
-              + "and buchung.buchungsklasse is null ";
-          anz = (Integer) service.execute(sqlc,
-              new Object[] { datumvon, datumbis, buchungsart.getID() 
-          }, rsi);
+              + "and buchung.buchungsklasse is null "
+              + "and buchung.konto = konto.id "
+              + "and konto.kontoart < ? ";
+          anz = (Integer) service.execute(sqlc, new Object[] { datumvon,
+              datumbis, buchungsart.getID(), Kontoart.LIMIT.getKey() }, rsi);
         }
       }
 
@@ -365,23 +372,24 @@ public class BuchungsklasseSaldoList extends TablePart implements Part
       {
         continue;
       }
-      ausgabe = true;
       String sql = null;
       if (!Einstellungen.getEinstellung().getBuchungsklasseInBuchung())
       {
         // Buchungsklasse steht in Buchungsart
-        sql = "select sum(betrag) from buchung, buchungsart "
+        sql = "select sum(buchung.betrag) from buchung, konto, buchungsart "
             + "where datum >= ? and datum <= ?  "
+            + "and buchung.konto = konto.id "
+            + "and konto.kontoart < ? "
             + "and buchung.buchungsart = buchungsart.id "
             + "and buchungsart.id = ? " + "and buchungsart.art = ?";
-        einnahmen = (Double) service.execute(sql,
-            new Object[] { datumvon, datumbis, buchungsart.getID(), 0 }, rsd);
+        einnahmen = (Double) service.execute(sql, new Object[] { datumvon,
+            datumbis, Kontoart.LIMIT.getKey(), buchungsart.getID(), 0 }, rsd);
         suBukEinnahmen += einnahmen;
-        ausgaben = (Double) service.execute(sql,
-            new Object[] { datumvon, datumbis, buchungsart.getID(), 1 }, rsd);
+        ausgaben = (Double) service.execute(sql, new Object[] { datumvon,
+            datumbis, Kontoart.LIMIT.getKey(), buchungsart.getID(), 1 }, rsd);
         suBukAusgaben += ausgaben;
-        umbuchungen = (Double) service.execute(sql,
-            new Object[] { datumvon, datumbis, buchungsart.getID(), 2 }, rsd);
+        umbuchungen = (Double) service.execute(sql, new Object[] { datumvon,
+            datumbis, Kontoart.LIMIT.getKey(), buchungsart.getID(), 2 }, rsd);
         suBukUmbuchungen += umbuchungen;
       }
       else
@@ -390,43 +398,50 @@ public class BuchungsklasseSaldoList extends TablePart implements Part
         if (buchungsklasseId != null)
         {
           // Buchungen der Buchungsklasse
-          sql = "select sum(betrag) from buchung, buchungsart "
+          sql = "select sum(buchung.betrag) from buchung, konto, buchungsart "
               + "where datum >= ? and datum <= ?  "
+              + "and buchung.konto = konto.id "
+              + "and konto.kontoart < ? "
               + "and buchung.buchungsart = buchungsart.id "
               + "and buchungsart.id = ? " + "and buchungsart.art = ? "
               + "and buchung.buchungsklasse = ? ";
           einnahmen = (Double) service.execute(sql,
-              new Object[] { datumvon, datumbis, buchungsart.getID(), 0, 
-                  buchungsklasseId }, rsd);
+              new Object[] { datumvon, datumbis, Kontoart.LIMIT.getKey(),
+                  buchungsart.getID(), 0, buchungsklasseId },
+              rsd);
           suBukEinnahmen += einnahmen;
           ausgaben = (Double) service.execute(sql,
-              new Object[] { datumvon, datumbis, buchungsart.getID(), 1, 
-                  buchungsklasseId }, rsd);
+              new Object[] { datumvon, datumbis, Kontoart.LIMIT.getKey(),
+                  buchungsart.getID(), 1, buchungsklasseId },
+              rsd);
           suBukAusgaben += ausgaben;
           umbuchungen = (Double) service.execute(sql,
-              new Object[] { datumvon, datumbis, buchungsart.getID(), 2, 
-                  buchungsklasseId }, rsd);
+              new Object[] { datumvon, datumbis, Kontoart.LIMIT.getKey(),
+                  buchungsart.getID(), 2, buchungsklasseId },
+              rsd);
           suBukUmbuchungen += umbuchungen;
         }
         else
         {
           // Buchungen ohne Buchungsklasse
-          sql = "select sum(betrag) from buchung, buchungsart "
+          sql = "select sum(buchung.betrag) from buchung, konto, buchungsart "
               + "where datum >= ? and datum <= ?  "
+              + "and buchung.konto = konto.id "
+              + "and konto.kontoart < ? "
               + "and buchung.buchungsart = buchungsart.id "
               + "and buchungsart.id = ? " + "and buchungsart.art = ? "
               + "and buchung.buchungsklasse is null ";
-          einnahmen = (Double) service.execute(sql,
-              new Object[] { datumvon, datumbis, buchungsart.getID(), 0 
-          }, rsd);
+          einnahmen = (Double) service.execute(sql, new Object[] { datumvon,
+              datumbis, Kontoart.LIMIT.getKey(), buchungsart.getID(), 0 },
+              rsd);
           suBukEinnahmen += einnahmen;
-          ausgaben = (Double) service.execute(sql,
-              new Object[] { datumvon, datumbis, buchungsart.getID(), 1 
-          }, rsd);
+          ausgaben = (Double) service.execute(sql, new Object[] { datumvon,
+              datumbis, Kontoart.LIMIT.getKey(), buchungsart.getID(), 1 },
+              rsd);
           suBukAusgaben += ausgaben;
-          umbuchungen = (Double) service.execute(sql,
-              new Object[] { datumvon, datumbis, buchungsart.getID(), 2 
-          }, rsd);
+          umbuchungen = (Double) service.execute(sql, new Object[] { datumvon,
+              datumbis, Kontoart.LIMIT.getKey(), buchungsart.getID(), 2 },
+              rsd);
           suBukUmbuchungen += umbuchungen;
         }
       }
@@ -460,14 +475,19 @@ public class BuchungsklasseSaldoList extends TablePart implements Part
         suBukSteuer.put(steuersatz,
             suBukSteuer.get(steuersatz) + einnahmen + ausgaben + umbuchungen);
       }
-
-      zeile.add(new BuchungsklasseSaldoZeile(BuchungsklasseSaldoZeile.DETAIL,
-          buchungsart, einnahmen, ausgaben, umbuchungen));
+      if (Math.abs(einnahmen) >= LIMIT || Math.abs(ausgaben) >= LIMIT
+          || Math.abs(umbuchungen) >= LIMIT
+          || !Einstellungen.getEinstellung().getUnterdrueckungOhneBuchung())
+      {
+        zeile.add(new BuchungsklasseSaldoZeile(BuchungsklasseSaldoZeile.DETAIL,
+            buchungsart, einnahmen, ausgaben, umbuchungen));
+      }
     }
     suEinnahmen += suBukEinnahmen;
     suAusgaben += suBukAusgaben;
     suUmbuchungen += suBukUmbuchungen;
-    if (!ausgabe
+    if (Math.abs(suBukEinnahmen) < LIMIT && Math.abs(suBukAusgaben) < LIMIT
+        && Math.abs(suBukUmbuchungen) < LIMIT
         && Einstellungen.getEinstellung().getUnterdrueckungOhneBuchung())
     {
       zeile.remove(zeile.size() - 1);

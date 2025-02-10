@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.rmi.RemoteException;
 import java.util.List;
+
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.FileDialog;
@@ -29,17 +30,18 @@ import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Element;
 
 import de.jost_net.JVerein.Einstellungen;
-import de.jost_net.JVerein.gui.action.BuchungsartAction;
+import de.jost_net.JVerein.gui.action.EditAction;
 import de.jost_net.JVerein.gui.formatter.BuchungsartFormatter;
 import de.jost_net.JVerein.gui.formatter.BuchungsklasseFormatter;
 import de.jost_net.JVerein.gui.formatter.JaNeinFormatter;
 import de.jost_net.JVerein.gui.menu.BuchungsartMenu;
+import de.jost_net.JVerein.gui.view.BuchungsartView;
 import de.jost_net.JVerein.io.FileViewer;
 import de.jost_net.JVerein.io.Reporter;
 import de.jost_net.JVerein.keys.ArtBuchungsart;
-import de.jost_net.JVerein.keys.SteuersatzBuchungsart;
 import de.jost_net.JVerein.keys.BuchungsartSort;
 import de.jost_net.JVerein.keys.StatusBuchungsart;
+import de.jost_net.JVerein.keys.SteuersatzBuchungsart;
 import de.jost_net.JVerein.rmi.Buchungsart;
 import de.jost_net.JVerein.rmi.Buchungsklasse;
 import de.jost_net.JVerein.util.Dateiname;
@@ -47,7 +49,6 @@ import de.willuhn.datasource.GenericObject;
 import de.willuhn.datasource.pseudo.PseudoIterator;
 import de.willuhn.datasource.rmi.DBIterator;
 import de.willuhn.datasource.rmi.DBService;
-import de.willuhn.jameica.gui.AbstractControl;
 import de.willuhn.jameica.gui.AbstractView;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.GUI;
@@ -68,10 +69,8 @@ import de.willuhn.logging.Logger;
 import de.willuhn.util.ApplicationException;
 import de.willuhn.util.ProgressMonitor;
 
-public class BuchungsartControl extends AbstractControl
+public class BuchungsartControl extends FilterControl
 {
-  private de.willuhn.jameica.system.Settings settings;
-
   private TablePart buchungsartList;
 
   private IntegerInput nummer;
@@ -83,20 +82,17 @@ public class BuchungsartControl extends AbstractControl
   private SelectInput buchungsklasse;
 
   private CheckboxInput spende;
-  
+
   private CheckboxInput abschreibung;
 
   private SelectInput steuersatz;
-  
+
   private SelectInput steuer_buchungsart;
 
-  private TextInput suchtext;
-
   private Buchungsart buchungsart;
-  
+
   private SelectInput status;
-  
-  private SelectInput suchstatus;
+
 
   public BuchungsartControl(AbstractView view)
   {
@@ -159,44 +155,6 @@ public class BuchungsartControl extends AbstractControl
     status = new SelectInput(StatusBuchungsart.getArray(),
         new StatusBuchungsart(getBuchungsart().getStatus()));
     return status;
-  }
-  
-  public SelectInput getSuchStatus() throws RemoteException
-  {
-    if (suchstatus != null)
-    {
-      return suchstatus;
-    }
-    suchstatus = new SelectInput(
-        new String[] { "Alle", "Ohne Deaktiviert" },
-        settings.getString("suchstatus", "Alle"));
-    suchstatus.addListener(new FilterListener());
-    return suchstatus;
-  }
-  
-  public class FilterListener implements Listener
-  {
-
-    FilterListener()
-    {
-    }
-
-    @Override
-    public void handleEvent(Event event)
-    {
-      if (event.type != SWT.Selection && event.type != SWT.FocusOut)
-      {
-        return;
-      }
-      try
-      {
-        getBuchungsartList();
-      }
-      catch (RemoteException e)
-      {
-        GUI.getStatusBar().setErrorText(e.getMessage());
-      }
-    }
   }
 
   public CheckboxInput getSpende() throws RemoteException
@@ -495,66 +453,12 @@ public class BuchungsartControl extends AbstractControl
     }
   }
 
-  public TextInput getSuchtext()
-  {
-    if (suchtext != null)
-    {
-      return suchtext;
-    }
-    suchtext = new TextInput(settings.getString("suchtext", ""), 35);
-    return suchtext;
-  }
-
-  @SuppressWarnings("unchecked")
   public Part getBuchungsartList() throws RemoteException
   {
-
-    if (suchstatus != null)
-    {
-      String tmp = (String) suchstatus.getValue();
-      if (tmp != null)
-      {
-        settings.setAttribute("suchstatus", tmp);
-      }
-      else
-      {
-        settings.setAttribute("suchstatus", "");
-      }
-    }
-    
-    if (suchtext != null)
-    {
-      String tmp = (String) suchtext.getValue();
-      if (tmp != null)
-      {
-        settings.setAttribute("suchtext", tmp);
-      }
-      else
-      {
-        settings.setAttribute("suchtext", "");
-      }
-    }
-    
-    DBService service = Einstellungen.getDBService();
-    DBIterator<Buchungsart> buchungsarten = service
-        .createList(Buchungsart.class);
-    buchungsarten.addFilter("nummer >= 0");
-    if (suchstatus != null && 
-        suchstatus.getValue().toString().equalsIgnoreCase("Ohne Deaktiviert"))
-      buchungsarten.addFilter("status != ?", new Object[] { StatusBuchungsart.INACTIVE });
-    if (!getSuchtext().getValue().equals(""))
-    {
-      String text = "%" + ((String) getSuchtext().getValue()).toUpperCase()
-          + "%";
-      buchungsarten.addFilter("(UPPER(bezeichnung) like ? or nummer like ?)",
-          new Object[] { text, text });
-    }
-    buchungsarten.setOrder("ORDER BY nummer");
-
     if (buchungsartList == null)
     {
-
-      buchungsartList = new TablePart(buchungsarten, new BuchungsartAction());
+      buchungsartList = new TablePart(getBuchungsarten(),
+          new EditAction(BuchungsartView.class));
       buchungsartList.addColumn("Nummer", "nummer");
       buchungsartList.addColumn("Bezeichnung", "bezeichnung");
       buchungsartList.addColumn("Art", "art", new Formatter()
@@ -622,15 +526,63 @@ public class BuchungsartControl extends AbstractControl
     else
     {
       buchungsartList.removeAll();
-
-      for (Buchungsart bu : (List<Buchungsart>) PseudoIterator
-          .asList(buchungsarten))
+      DBIterator<Buchungsart> buchungsarten = getBuchungsarten();
+      while (buchungsarten.hasNext())
       {
-        buchungsartList.addItem(bu);
+        buchungsartList.addItem(buchungsarten.next());
       }
       buchungsartList.sort();
     }
     return buchungsartList;
+  }
+
+  private DBIterator<Buchungsart> getBuchungsarten() throws RemoteException
+  {
+    DBService service = Einstellungen.getDBService();
+    DBIterator<Buchungsart> buchungsarten = service
+        .createList(Buchungsart.class);
+
+    if (isSuchStatusAktiv() && 
+        getSuchStatus(null).getValue().toString()
+            .equalsIgnoreCase("Ohne Deaktiviert"))
+      buchungsarten.addFilter("status != ?", new Object[] { StatusBuchungsart.INACTIVE });
+    if (isSuchnameAktiv() && !getSuchname().getValue().equals(""))
+    {
+      String text = "%" + ((String) getSuchname().getValue()).toUpperCase()
+          + "%";
+      buchungsarten.addFilter("nummer like ?", new Object[] { text });
+    }
+    if (isSuchtextAktiv() && !getSuchtext().getValue().equals(""))
+    {
+      String text = "%" + ((String) getSuchtext().getValue()).toUpperCase()
+          + "%";
+      buchungsarten.addFilter("UPPER(bezeichnung) like ?",
+          new Object[] { text });
+    }
+    if (isSuchBuchungsartArtAktiv() && getSuchBuchungsartArt().getValue() != null)
+    {
+      ArtBuchungsart art = (ArtBuchungsart) getSuchBuchungsartArt().getValue();
+      buchungsarten.addFilter("art = ?", new Object[] { art.getKey() });
+    }
+    if (isSuchBuchungsklasseAktiv() && getSuchBuchungsklasse().getValue() != null)
+    {
+      Buchungsklasse tmp = (Buchungsklasse) getSuchBuchungsklasse().getValue();
+      buchungsarten.addFilter("buchungsklasse = ?", new Object[] { tmp.getID() });
+    }
+    buchungsarten.setOrder("ORDER BY nummer");
+    return buchungsarten;
+  }
+
+  public void TabRefresh()
+  {
+    try
+    {
+      getBuchungsartList();
+    }
+    catch (RemoteException e)
+    {
+      //
+    }
   }
 
   public Button getPDFAusgabeButton()
@@ -679,12 +631,7 @@ public class BuchungsartControl extends AbstractControl
       s = s + ".pdf";
     }
     final File file = new File(s);
-    final DBIterator<Buchungsart> it = Einstellungen.getDBService()
-        .createList(Buchungsart.class);
-    if (suchstatus != null && 
-        suchstatus.getValue().toString().equalsIgnoreCase("Ohne Deaktiviert"))
-      it.addFilter("status != ?", new Object[] { StatusBuchungsart.INACTIVE });
-    it.setOrder("ORDER BY nummer");
+    final DBIterator<Buchungsart> it = getBuchungsarten();
     settings.setAttribute("lastdir", file.getParent());
     BackgroundTask t = new BackgroundTask()
     {

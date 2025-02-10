@@ -19,6 +19,8 @@ package de.jost_net.JVerein.rmi;
 import java.rmi.RemoteException;
 import java.util.Date;
 
+import de.jost_net.JVerein.keys.Anlagenzweck;
+import de.jost_net.JVerein.keys.Kontoart;
 import de.jost_net.JVerein.util.Geschaeftsjahr;
 import de.willuhn.datasource.rmi.DBIterator;
 import de.willuhn.datasource.rmi.DBObject;
@@ -51,22 +53,21 @@ public interface Konto extends DBObject
 
   public void setBuchungsartId(Long buchungsartId) throws RemoteException;
   
-  public Boolean getAnlagenkonto() throws RemoteException;
+  public Kontoart getKontoArt() throws RemoteException;
 
-  public void setAnlagenkonto(Boolean anlagenkonto)
-      throws RemoteException;
-  
+  public void setKontoArt(Kontoart kontoart) throws RemoteException;
+
   public Buchungsart getAnlagenart() throws RemoteException;
 
   public Long getAnlagenartId() throws RemoteException;
 
   public void setAnlagenartId(Long anlagensartId) throws RemoteException;
   
-  public Buchungsklasse getAnlagenklasse() throws RemoteException;
+  public Buchungsklasse getBuchungsklasse() throws RemoteException;
 
-  public Long getAnlagenklasseId() throws RemoteException;
+  public Long getBuchungsklasseId() throws RemoteException;
 
-  public void setAnlagenklasseId(Long anlagenklasseId) throws RemoteException;
+  public void setBuchungsklasseId(Long anlagenklasseId) throws RemoteException;
   
   public Buchungsart getAfaart() throws RemoteException;
 
@@ -106,10 +107,15 @@ public interface Konto extends DBObject
 
   public void setAfaMode(Integer afamode) throws RemoteException;
 
+  public Double getSaldo() throws RemoteException;
+
   public DBIterator<Konto> getKontenEinesJahres(Geschaeftsjahr gj)
       throws RemoteException;
   
   public DBIterator<Konto> getKontenVonBis(Date von, Date bis)
       throws RemoteException;
 
+  public Anlagenzweck getAnlagenzweck() throws RemoteException;
+
+  public void setAnlagenzweck(Anlagenzweck zweck) throws RemoteException;
 }

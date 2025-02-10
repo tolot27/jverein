@@ -17,8 +17,8 @@
 package de.jost_net.JVerein.gui.view;
 
 import de.jost_net.JVerein.gui.action.DokumentationAction;
-import de.jost_net.JVerein.gui.action.RechnungAutoNeuAction;
 import de.jost_net.JVerein.gui.control.RechnungControl;
+import de.jost_net.JVerein.gui.parts.ToolTipButton;
 import de.willuhn.jameica.gui.AbstractView;
 import de.willuhn.jameica.gui.GUI;
 import de.willuhn.jameica.gui.parts.ButtonArea;
@@ -51,18 +51,23 @@ public class RechnungListeView extends AbstractView
     right.addInput(control.getMailauswahl());
     
     ButtonArea fbuttons = new ButtonArea();
+    ToolTipButton zurueck = control.getZurueckButton(control.getDatumvon(),
+        control.getDatumbis());
+    fbuttons.addButton(zurueck);
+    ToolTipButton vor = control.getVorButton(control.getDatumvon(),
+        control.getDatumbis());
+    fbuttons.addButton(vor);
     fbuttons.addButton(control.getResetButton());
     fbuttons.addButton(control.getSuchenButton());
     group.addButtonArea(fbuttons);
+    zurueck.setToolTipText("Datumsbereich zurück");
+    vor.setToolTipText("Datumsbereich vowärts");
 
     control.getRechnungList().paint(this.getParent());
 
     ButtonArea buttons = new ButtonArea();
     buttons.addButton("Hilfe", new DokumentationAction(),
         DokumentationUtil.RECHNUNG, false, "question-circle.png");
-    buttons.addButton("Neu (automatisch)",
-        new RechnungAutoNeuAction(), null, false,
-        "document-new.png");
     buttons.paint(this.getParent());
   }
 

@@ -39,6 +39,7 @@ import com.itextpdf.text.pdf.PdfPCell;
 import de.jost_net.JVerein.Einstellungen;
 import de.jost_net.JVerein.Variable.AllgemeineMap;
 import de.jost_net.JVerein.Variable.MitgliedMap;
+import de.jost_net.JVerein.Variable.SpendenbescheinigungMap;
 import de.jost_net.JVerein.Variable.SpendenbescheinigungVar;
 import de.jost_net.JVerein.Variable.VarTools;
 import de.jost_net.JVerein.io.FileViewer;
@@ -219,14 +220,14 @@ public class SpendenbescheinigungPrintAction implements Action
           if (spb.getMitglied() != null)
           {
             fileName = new Dateiname(spb.getMitglied(),
-                spb.getBescheinigungsdatum(), "Spendenbescheinigung",
+                spb.getSpendedatum(), "Spendenbescheinigung",
                 Einstellungen.getEinstellung().getDateinamenmusterSpende(),
                 "pdf").get();
           }
           else
           {
             fileName = new Dateiname(spb.getZeile1(), spb.getZeile2(),
-                spb.getBescheinigungsdatum(), "Spendenbescheinigung",
+                spb.getSpendedatum(), "Spendenbescheinigung",
                 Einstellungen.getEinstellung().getDateinamenmusterSpende(),
                 "pdf").get();
           }
@@ -246,11 +247,14 @@ public class SpendenbescheinigungPrintAction implements Action
         {
           Formular fo = (Formular) Einstellungen.getDBService()
               .createObject(Formular.class, spb.getFormular().getID());
-          Map<String, Object> map = spb.getMap(null);
+          Map<String, Object> map = new SpendenbescheinigungMap().getMap(spb, null);
           map = new AllgemeineMap().getMap(map);
           if(spb.getMitglied() != null)
             map = new MitgliedMap().getMap(spb.getMitglied(), map);
-          FormularAufbereitung fa = new FormularAufbereitung(file);
+          boolean encrypt = Einstellungen.getEinstellung()
+              .getUnterschriftdrucken();
+          FormularAufbereitung fa = new FormularAufbereitung(file, false,
+              encrypt);
           fa.writeForm(fo, map);
           if (adressblatt != Adressblatt.OHNE_ADRESSBLATT)
           {
@@ -272,6 +276,7 @@ public class SpendenbescheinigungPrintAction implements Action
             fa.printAnschreiben(spb, text);
           }
           fa.closeFormular();
+          fo.store();
         }
       }
       String erfolg = (spbArr.length > 1) ? "Die Spendenbescheinigungen wurden erstellt und unter " + path + " gespeichert."
@@ -306,10 +311,10 @@ public class SpendenbescheinigungPrintAction implements Action
     final File file = new File(fileName);
     FileOutputStream fos = new FileOutputStream(file);
 
-    Map<String, Object> map = spb.getMap(null);
+    Map<String, Object> map = new SpendenbescheinigungMap().getMap(spb, null);
     map = new AllgemeineMap().getMap(map);
     boolean isSammelbestaetigung = spb.isSammelbestaetigung();
-    Reporter rpt = new Reporter(fos, 80, 50, 50, 50);
+    Reporter rpt = new Reporter(fos, 80, 50, 50, 50, true);
 
     // Aussteller, kein Header
     rpt.addHeaderColumn("", Element.ALIGN_CENTER, 100, BaseColor.LIGHT_GRAY);
@@ -644,8 +649,15 @@ public class SpendenbescheinigungPrintAction implements Action
           8);
     }
 
-    if (Einstellungen.getEinstellung().getUnterschriftdrucken() &&
-        Einstellungen.getEinstellung().getUnterschrift() != null)
+    boolean unterschriftDrucken = false;
+    if (Einstellungen.getEinstellung().getUnterschriftdrucken()
+        && Einstellungen.getEinstellung().getUnterschrift() != null
+        && spb.isEchteGeldspende())
+    {
+      unterschriftDrucken = true;
+    }
+
+    if (unterschriftDrucken)
     {
       rpt.add("\n", 8);
       rpt.add(Einstellungen.getEinstellung().getUnterschrift(), 400, 55, 0);
@@ -665,8 +677,7 @@ public class SpendenbescheinigungPrintAction implements Action
             + "(Ort, Datum und Unterschrift des Zuwendungsempfängers)",
             8);
 
-    if (Einstellungen.getEinstellung().getUnterschriftdrucken() &&
-        Einstellungen.getEinstellung().getUnterschrift() != null)
+    if (unterschriftDrucken)
     {
       rpt.addLight("\nDie maschinelle Erstellung der Zuwendungsbestätigung wurde dem "
           + "zuständigen Finanzamt " + Einstellungen.getEinstellung().getFinanzamt()

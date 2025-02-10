@@ -18,7 +18,11 @@ package de.jost_net.JVerein.gui.control;
 
 import java.rmi.RemoteException;
 import java.text.ParseException;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.StringTokenizer;
@@ -36,9 +40,14 @@ import de.jost_net.JVerein.gui.dialogs.ZusatzfelderAuswahlDialog;
 import de.jost_net.JVerein.gui.input.GeschlechtInput;
 import de.jost_net.JVerein.gui.input.IntegerNullInput;
 import de.jost_net.JVerein.gui.input.MailAuswertungInput;
+import de.jost_net.JVerein.gui.parts.ToolTipButton;
+import de.jost_net.JVerein.keys.ArtBuchungsart;
+import de.jost_net.JVerein.keys.Kontoart;
+import de.jost_net.JVerein.keys.SuchSpendenart;
 import de.jost_net.JVerein.rmi.Abrechnungslauf;
 import de.jost_net.JVerein.rmi.Adresstyp;
 import de.jost_net.JVerein.rmi.Beitragsgruppe;
+import de.jost_net.JVerein.rmi.Buchungsklasse;
 import de.jost_net.JVerein.rmi.Eigenschaft;
 import de.jost_net.JVerein.rmi.Lehrgangsart;
 import de.jost_net.JVerein.rmi.Mitglied;
@@ -66,7 +75,9 @@ import de.willuhn.logging.Logger;
 import de.willuhn.util.ApplicationException;
 
 public class FilterControl extends AbstractControl
-{  
+{
+  public final static String ALLE = "Alle";
+
   // String für allgemeine Settings z.B. settings1
   protected String settingsprefix = "";
 
@@ -77,7 +88,7 @@ public class FilterControl extends AbstractControl
   protected String additionalparamprefix2 = "";
 
   protected Settings settings = null;
-  
+
   protected Mitgliedstyp typ = Mitgliedstyp.NOT_USED;
 
   protected TreePart eigenschaftenAuswahlTree = null;
@@ -85,13 +96,13 @@ public class FilterControl extends AbstractControl
   protected SelectInput suchadresstyp = null;
 
   protected SelectInput status = null;
-  
+
   protected SelectInput art = null;
 
   protected TextInput suchexternemitgliedsnummer = null;
 
   protected IntegerNullInput suchmitgliedsnummer = null;
-  
+
   protected DialogInput eigenschaftenabfrage = null;
 
   protected SelectInput beitragsgruppeausw = null;
@@ -117,23 +128,23 @@ public class FilterControl extends AbstractControl
   protected DateInput austrittvon = null;
 
   protected DateInput austrittbis = null;
-  
+
   protected DialogInput zusatzfelderabfrage = null;
-  
+
   protected SelectInput mailAuswahl = null;
-  
-  protected ZusatzfelderAuswahlDialog zad= null;
-  
+
+  protected ZusatzfelderAuswahlDialog zad = null;
+
   protected DateInput datumvon = null;
 
   protected DateInput datumbis = null;
-  
+
   protected SelectInput differenz = null;
-  
+
   protected CheckboxInput ohneabbucher = null;
-  
+
   protected SelectInput suchlehrgangsart = null;
-  
+
   protected DateInput eingabedatumvon = null;
 
   protected DateInput eingabedatumbis = null;
@@ -143,11 +154,28 @@ public class FilterControl extends AbstractControl
   protected DateInput abbuchungsdatumbis = null;
 
   protected TextInput suchtext = null;
-  
+
   protected SelectInput abrechnungslaufausw = null;
-  
+
   protected IntegerNullInput integerausw = null;
-  
+
+  protected SelectInput suchstatus = null;
+
+  protected SelectInput suchbuchungsklasse = null;
+
+  protected SelectInput suchbuchungsartart = null;
+
+  protected SelectInput suchkontoart = null;
+
+  private Calendar calendar = Calendar.getInstance();
+
+  private enum RANGE
+  {
+    MONAT, TAG
+  }
+
+  protected SelectInput suchspendenart = null;
+
   public enum Mitgliedstyp {
     MITGLIED,
     NICHTMITGLIED,
@@ -244,7 +272,7 @@ public class FilterControl extends AbstractControl
       suchadresstyp = new SelectInput(new ArrayList<>(), null);
     }
     suchadresstyp.setName("Mitgliedstyp");
-    suchadresstyp.setPleaseChoose("Bitte auswählen");
+    suchadresstyp.setPleaseChoose(ALLE);
     suchadresstyp.addListener(new FilterListener());
     return suchadresstyp;
   }
@@ -296,7 +324,7 @@ public class FilterControl extends AbstractControl
       Logger.error("Fehler beim lesen der Einstellungen");
     }
     art.setName("Mitgliedsart");
-    art.setPleaseChoose("Bitte auswählen");
+    art.setPleaseChoose(ALLE);
     art.addListener(new FilterListener());
     return art;
   }
@@ -364,8 +392,8 @@ public class FilterControl extends AbstractControl
         String eigenschaftId = s.substring(0,s.length()-1);
         String plusMinus = s.substring(s.length()-1);
         if (eigenschaftId.isEmpty() ||
-            !(plusMinus == EigenschaftenNode.PLUS ||
-            plusMinus == EigenschaftenNode.MINUS))
+            !(plusMinus.equals(EigenschaftenNode.PLUS) ||
+            plusMinus.equals(EigenschaftenNode.MINUS)))
         {
           text = new StringBuilder();
           tmp = "";
@@ -526,7 +554,7 @@ public class FilterControl extends AbstractControl
     beitragsgruppeausw = new SelectInput(list != null ? PseudoIterator.asList(list) : null, bg);
     beitragsgruppeausw.setName("Beitragsgruppe");
     beitragsgruppeausw.setAttribute("bezeichnung");
-    beitragsgruppeausw.setPleaseChoose("Bitte auswählen");
+    beitragsgruppeausw.setPleaseChoose(ALLE);
     beitragsgruppeausw.addListener(new FilterListener());
     return beitragsgruppeausw;
   }
@@ -562,7 +590,7 @@ public class FilterControl extends AbstractControl
     suchgeschlecht = new GeschlechtInput(
         settings.getString(settingsprefix + "geschlecht", ""));
     suchgeschlecht.setName("Geschlecht");
-    suchgeschlecht.setPleaseChoose("Bitte auswählen");
+    suchgeschlecht.setPleaseChoose(ALLE);
     suchgeschlecht.addListener(new FilterListener());
     return suchgeschlecht;
   }
@@ -909,7 +937,7 @@ public class FilterControl extends AbstractControl
       //
     }
     suchlehrgangsart = new SelectInput(it != null ? PseudoIterator.asList(it) : null, letztesuche);
-    suchlehrgangsart.setPleaseChoose("Bitte auswählen");
+    suchlehrgangsart.setPleaseChoose(ALLE);
     suchlehrgangsart.addListener(new FilterListener());
     suchlehrgangsart.setName("Lehrgangsart");
     return suchlehrgangsart;
@@ -1059,6 +1087,143 @@ public class FilterControl extends AbstractControl
     return integerausw != null;
   }
   
+  public SelectInput getSuchSpendenart()
+  {
+    if (suchspendenart != null)
+    {
+      return suchspendenart;
+    }
+    SuchSpendenart defaultwert = SuchSpendenart
+        .getByKey(settings.getInt(settingsprefix + "suchspendenart.key", 1));
+    suchspendenart = new SelectInput(SuchSpendenart.values(), defaultwert);
+    suchspendenart.setName("Spendenart");
+    suchspendenart.addListener(new FilterListener());
+    return suchspendenart;
+  }
+
+  public boolean isSuchSpendenartAktiv()
+  {
+    return suchspendenart != null;
+  }
+
+  public SelectInput getSuchStatus(String suchstring) throws RemoteException
+  {
+    if (suchstatus != null)
+    {
+      return suchstatus;
+    }
+    suchstatus = new SelectInput(new String[] { ALLE, suchstring },
+        settings.getString(settingsprefix + "suchstatus", ALLE));
+    suchstatus.addListener(new FilterListener());
+    suchstatus.setName("Status");
+    return suchstatus;
+  }
+
+  public boolean isSuchStatusAktiv()
+  {
+    return suchstatus != null;
+  }
+
+  public SelectInput getSuchBuchungsklasse() throws RemoteException
+  {
+    if (suchbuchungsklasse != null)
+    {
+      return suchbuchungsklasse;
+    }
+    Buchungsklasse bk = null;
+    String buchungskl = settings
+        .getString(settingsprefix + "suchbuchungsklasse", "");
+    if (buchungskl.length() > 0)
+    {
+      try
+      {
+        bk = (Buchungsklasse) Einstellungen.getDBService()
+            .createObject(Buchungsklasse.class, buchungskl);
+      }
+      catch (ObjectNotFoundException e)
+      {
+        bk = (Buchungsklasse) Einstellungen.getDBService()
+            .createObject(Buchungsklasse.class, null);
+      }
+    }
+    DBIterator<Buchungsklasse> list = Einstellungen.getDBService()
+        .createList(Buchungsklasse.class);
+    list.setOrder("ORDER BY bezeichnung");
+    suchbuchungsklasse = new SelectInput(
+        list != null ? PseudoIterator.asList(list) : null, bk);
+    suchbuchungsklasse.setName("Buchungsklasse");
+    suchbuchungsklasse.setAttribute("bezeichnung");
+    suchbuchungsklasse.setPleaseChoose(ALLE);
+    suchbuchungsklasse.addListener(new FilterListener());
+    return suchbuchungsklasse;
+  }
+
+  public boolean isSuchBuchungsklasseAktiv()
+  {
+    return suchbuchungsklasse != null;
+  }
+
+  public SelectInput getSuchBuchungsartArt() throws RemoteException
+  {
+    if (suchbuchungsartart != null)
+    {
+      return suchbuchungsartart;
+    }
+    String art = settings.getString(settingsprefix + "suchbuchungsartart", "");
+    ArtBuchungsart artb = null;
+    if (art.length() > 0)
+    {
+      try
+      {
+        artb = new ArtBuchungsart(Integer.valueOf(art));
+      }
+      catch (Exception e)
+      {
+        //
+      }
+    }
+    suchbuchungsartart = new SelectInput(ArtBuchungsart.getArray(), artb);
+    suchbuchungsartart.setName("Art");
+    suchbuchungsartart.setPleaseChoose(ALLE);
+    suchbuchungsartart.addListener(new FilterListener());
+    return suchbuchungsartart;
+  }
+
+  public boolean isSuchBuchungsartArtAktiv()
+  {
+    return suchbuchungsartart != null;
+  }
+
+  public SelectInput getSuchKontoart() throws RemoteException
+  {
+    if (suchkontoart != null)
+    {
+      return suchkontoart;
+    }
+    ArrayList<Kontoart> values = new ArrayList<Kontoart>(
+        Arrays.asList(Kontoart.values()));
+    values.remove(Kontoart.LIMIT);
+    String key = settings.getString(settingsprefix + "suchkontoart.key", null);
+    if (key != null && !key.isEmpty())
+    {
+      Kontoart defaultwert = Kontoart.getByKey(Integer.parseInt(key));
+      suchkontoart = new SelectInput(values, defaultwert);
+    }
+    else
+    {
+      suchkontoart = new SelectInput(values, null);
+    }
+    suchkontoart.setName("Kontoart");
+    suchkontoart.setPleaseChoose(ALLE);
+    suchkontoart.addListener(new FilterListener());
+    return suchkontoart;
+  }
+
+  public boolean isSuchKontoartAktiv()
+  {
+    return suchkontoart != null;
+  }
+
   /**
    * Buttons
    */
@@ -1177,6 +1342,16 @@ public class FilterControl extends AbstractControl
           suchtext.setValue("");
         if (integerausw != null)
           integerausw.setValue(null);
+        if (suchspendenart != null)
+          suchspendenart.setValue(SuchSpendenart.ALLE);
+        if (suchstatus != null)
+          suchstatus.setValue(ALLE);
+        if (suchbuchungsklasse != null)
+          suchbuchungsklasse.setValue(null);
+        if (suchbuchungsartart != null)
+          suchbuchungsartart.setValue(null);
+        if (suchkontoart != null)
+          suchkontoart.setValue(null);
         refresh();
       }
     }, null, false, "eraser.png");
@@ -1337,7 +1512,7 @@ public class FilterControl extends AbstractControl
     if (art != null)
     {
       String tmp = (String) art.getValue();
-      if (tmp != null && !tmp.equals("Bitte auswählen"))
+      if (tmp != null)
       {
         settings.setAttribute(settingsprefix + "status.art", tmp);
       }
@@ -1402,7 +1577,7 @@ public class FilterControl extends AbstractControl
     if (suchgeschlecht != null)
     {
       String tmp = (String) suchgeschlecht.getValue();
-      if (tmp != null && !getSuchGeschlecht().getText().equals("Bitte auswählen"))
+      if (tmp != null)
       {
         settings.setAttribute(settingsprefix + "geschlecht", tmp);
       }
@@ -1564,8 +1739,68 @@ public class FilterControl extends AbstractControl
         settings.setAttribute(settingsprefix + "intergerauswahl", "");
       }
     }
+    
+    if (suchspendenart != null )
+    {
+      SuchSpendenart ss = (SuchSpendenart) suchspendenart.getValue();
+      settings.setAttribute(settingsprefix + "suchspendenart.key", ss.getKey());
+    }
+
+    if (suchstatus != null)
+    {
+      String tmp = (String) suchstatus.getValue();
+      if (tmp != null)
+      {
+        settings.setAttribute(settingsprefix + "suchstatus", tmp);
+      }
+      else
+      {
+        settings.setAttribute(settingsprefix + "suchstatus", "");
+      }
+    }
+
+    if (suchbuchungsklasse != null)
+    {
+      Buchungsklasse tmpbk = (Buchungsklasse) suchbuchungsklasse.getValue();
+      if (tmpbk != null)
+      {
+        settings.setAttribute(settingsprefix + "suchbuchungsklasse",
+            tmpbk.getID());
+      }
+      else
+      {
+        settings.setAttribute(settingsprefix + "suchbuchungsklasse", "");
+      }
+    }
+
+    if (suchbuchungsartart != null)
+    {
+      ArtBuchungsart art = (ArtBuchungsart) suchbuchungsartart.getValue();
+      if (art != null)
+      {
+        settings.setAttribute(settingsprefix + "suchbuchungsartart",
+            art.getKey());
+      }
+      else
+      {
+        settings.setAttribute(settingsprefix + "suchbuchungsartart", "");
+      }
+    }
+
+    if (suchkontoart != null)
+    {
+      Kontoart ka = (Kontoart) suchkontoart.getValue();
+      if (ka != null)
+      {
+        settings.setAttribute(settingsprefix + "suchkontoart.key", ka.getKey());
+      }
+      else
+      {
+        settings.setAttribute(settingsprefix + "suchkontoart.key", "");
+      }
+    }
   }
-  
+
   private void saveDate(Date tmp, String setting)
   {
     if (tmp != null)
@@ -1576,6 +1811,111 @@ public class FilterControl extends AbstractControl
     else
     {
       settings.setAttribute(settingsprefix + setting, "");
+    }
+  }
+  
+  public ToolTipButton getZurueckButton(DateInput vonDatum, DateInput bisDatum)
+  {
+    return new ToolTipButton("", new Action()
+    {
+      @Override
+      public void handleAction(Object context) throws ApplicationException
+      {
+        Date von = (Date) vonDatum.getValue();
+        Date bis = (Date) bisDatum.getValue();
+        if (getRangeTyp(von, bis) == RANGE.TAG)
+        {
+          int delta = (int) ChronoUnit.DAYS.between(von.toInstant(), bis.toInstant());
+          delta++;
+          calendar.setTime(von);
+          calendar.add(Calendar.DAY_OF_MONTH, -delta);
+          vonDatum.setValue(calendar.getTime());
+          calendar.setTime(bis);
+          calendar.add(Calendar.DAY_OF_MONTH, -delta);
+          bisDatum.setValue(calendar.getTime());
+        }
+        else
+        {
+          LocalDate lvon = von.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+          LocalDate lbis = bis.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+          int delta = (int) ChronoUnit.MONTHS.between(lvon, lbis);
+          delta++;
+          calendar.setTime(von);
+          calendar.add(Calendar.MONTH, -delta);
+          vonDatum.setValue(calendar.getTime());
+          calendar.add(Calendar.MONTH, delta);
+          calendar.add(Calendar.DAY_OF_MONTH, -1);
+          bisDatum.setValue(calendar.getTime());
+        }
+        TabRefresh();
+      }
+    }, null, false, "go-previous.png");
+  }
+
+  public ToolTipButton getVorButton(DateInput vonDatum, DateInput bisDatum)
+  {
+    return new ToolTipButton("", new Action()
+    {
+      @Override
+      public void handleAction(Object context) throws ApplicationException
+      {
+        Date von = (Date) vonDatum.getValue();
+        Date bis = (Date) bisDatum.getValue();
+        if (getRangeTyp(von, bis) == RANGE.TAG)
+        {
+          int delta = (int) ChronoUnit.DAYS.between(von.toInstant(), bis.toInstant());
+          delta++;
+          calendar.setTime(von);
+          calendar.add(Calendar.DAY_OF_MONTH, delta);
+          vonDatum.setValue(calendar.getTime());
+          calendar.setTime(bis);
+          calendar.add(Calendar.DAY_OF_MONTH, delta);
+          bisDatum.setValue(calendar.getTime());
+        }
+        else
+        {
+          LocalDate lvon = von.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+          LocalDate lbis = bis.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+          int delta = (int) ChronoUnit.MONTHS.between(lvon, lbis);
+          delta++;
+          calendar.setTime(von);
+          calendar.add(Calendar.MONTH, delta);
+          vonDatum.setValue(calendar.getTime());
+          calendar.add(Calendar.MONTH, delta);
+          calendar.add(Calendar.DAY_OF_MONTH, -1);
+          bisDatum.setValue(calendar.getTime());
+        }
+        TabRefresh();
+      }
+    }, null, false, "go-next.png");
+  }
+
+  private RANGE getRangeTyp(Date von, Date bis) throws ApplicationException
+  {
+    checkDate(von, bis);
+    calendar.setTime(von);
+    if (calendar.get(Calendar.DAY_OF_MONTH) != 1)
+      return RANGE.TAG;
+    calendar.setTime(bis);
+    calendar.add(Calendar.DAY_OF_MONTH, 1);
+    if (calendar.get(Calendar.DAY_OF_MONTH) != 1)
+      return RANGE.TAG;
+    return RANGE.MONAT;
+  }
+  
+  private void checkDate(Date von, Date bis) throws ApplicationException
+  {
+    if (von == null)
+    {
+      throw new ApplicationException("Bitte Von Datum eingeben!");
+    }
+    if (bis == null)
+    {
+      throw new ApplicationException("Bitte Bis Datum eingeben!");
+    }
+    if (von.after(bis))
+    {
+      throw new ApplicationException("Von Datum ist nach Bis Datum!");
     }
   }
 }

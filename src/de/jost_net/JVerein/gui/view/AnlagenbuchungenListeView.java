@@ -26,8 +26,9 @@ import de.jost_net.JVerein.gui.action.BuchungImportAction;
 import de.jost_net.JVerein.gui.action.BuchungNeuAction;
 import de.jost_net.JVerein.gui.action.DokumentationAction;
 import de.jost_net.JVerein.gui.control.BuchungsControl;
-import de.jost_net.JVerein.gui.control.BuchungsControl.Kontenart;
+import de.jost_net.JVerein.gui.control.BuchungsControl.Kontenfilter;
 import de.jost_net.JVerein.gui.control.BuchungsHeaderControl;
+import de.jost_net.JVerein.gui.parts.ToolTipButton;
 import de.willuhn.jameica.gui.AbstractView;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.GUI;
@@ -49,31 +50,34 @@ public class AnlagenbuchungenListeView extends AbstractView
   {
     GUI.getView().setTitle("Anlagenbuchungen");
     
-    final BuchungsControl control = new BuchungsControl(this, Kontenart.ANLAGEKONTO);
-
-    LabelGroup group = new LabelGroup(getParent(), "Konto");
-    group.addLabelPair("Konto", control.getSuchKonto());
+    final BuchungsControl control = new BuchungsControl(this, Kontenfilter.ANLAGEKONTO);
 
     TabFolder folder = new TabFolder(getParent(), SWT.V_SCROLL | SWT.BORDER);
     folder.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
     folder.setBackground(Color.BACKGROUND.getSWTColor());
 
     // Erster Tab
-    TabGroup tabAllgemein = new TabGroup(folder, "Suche Buchungen", true, 2);
+    TabGroup tabAllgemein = new TabGroup(folder, "Suche Buchungen", true, 1);
     LabelGroup labelgroup1 = new LabelGroup(tabAllgemein.getComposite(), "Filter");
     ColumnLayout cl = new ColumnLayout(labelgroup1.getComposite(), 2);
     SimpleContainer left = new SimpleContainer(cl.getComposite());
     SimpleContainer right = new SimpleContainer(cl.getComposite());
+
+    left.addLabelPair("Konto", control.getSuchKonto());
     left.addLabelPair("Buchungsart", control.getSuchBuchungsart());
     left.addLabelPair("Projekt", control.getSuchProjekt());
-    left.addLabelPair("Betrag", control.getSuchBetrag());
-    right.addLabelPair("Von Datum", control.getVondatum());
-    right.addLabelPair("Bis Datum", control.getBisdatum());
+    left.addLabelPair("Splitbuchung", control.getSuchSplibuchung());
+
+    right.addLabelPair("Datum von", control.getVondatum());
+    right.addLabelPair("Datum bis", control.getBisdatum());
     right.addLabelPair("Enthaltener Text", control.getSuchtext());
+    right.addLabelPair("Betrag", control.getSuchBetrag());
     
     ButtonArea buttons1 = new ButtonArea();
-    buttons1.addButton(control.getZurueckButton());
-    buttons1.addButton(control.getVorButton());
+    ToolTipButton zurueck = control.getZurueckButton();
+    buttons1.addButton(zurueck);
+    ToolTipButton vor = control.getVorButton();
+    buttons1.addButton(vor);
     Button reset = new Button("Filter-Reset", new Action()
     {
       @Override
@@ -94,11 +98,13 @@ public class AnlagenbuchungenListeView extends AbstractView
     }, null, true, "search.png");
     buttons1.addButton(suchen);
     labelgroup1.addButtonArea(buttons1);
+    zurueck.setToolTipText("Datumsbereich zurück");
+    vor.setToolTipText("Datumsbereich vowärts");
 
     // Zweiter Tab
     final BuchungsHeaderControl headerControl = new BuchungsHeaderControl(
         this, control);
-    TabGroup tabKonto = new TabGroup(folder, "Konto Kenndaten", true, 4);
+    TabGroup tabKonto = new TabGroup(folder, "Konto Kenndaten", true, 1);
     LabelGroup labelgroup2 = new LabelGroup(tabKonto.getComposite(), "");
     ColumnLayout c2 = new ColumnLayout(labelgroup2.getComposite(), 2);
     SimpleContainer left2 = new SimpleContainer(c2.getComposite());

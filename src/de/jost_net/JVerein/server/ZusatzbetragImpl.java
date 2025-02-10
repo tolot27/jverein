@@ -283,6 +283,12 @@ public class ZusatzbetragImpl extends AbstractDBObject implements Zusatzbetrag
   }
 
   @Override
+  public Long getBuchungsartId() throws RemoteException
+  {
+    return (Long) super.getAttribute("buchungsart");
+  }
+
+  @Override
   public Buchungsklasse getBuchungsklasse() throws RemoteException
   {
     Long l = (Long) super.getAttribute("buchungsklasse");
@@ -329,29 +335,21 @@ public class ZusatzbetragImpl extends AbstractDBObject implements Zusatzbetrag
     return super.getAttribute(fieldName);
   }
 
+  /*
+   * 
+   */
   @Override
-  public boolean isAktiv(Date datum) throws RemoteException
+  public boolean isOffen(Date datum) throws RemoteException
   {
-    if (!getMitglied().isAngemeldet(datum))
+    if (!getMitglied().isAngemeldet(datum)
+        && !Einstellungen.getEinstellung().getZusatzbetragAusgetretene())
     {
-      if (!Einstellungen.getEinstellung().getZusatzbetragAusgetretene())
-      {
-        return false;
-      }
+      return false;
     }
     // Einmalige Ausführung
     if (getIntervall().intValue() == IntervallZusatzzahlung.KEIN)
     {
-      // Ist das Ausführungsdatum gesetzt?
-      if (getAusfuehrung() == null)
-      {
-        return true;
-      }
-      else
-      {
-        // ja: nicht mehr ausführen
-        return false;
-      }
+      return (getAusfuehrung() == null);
     }
 
     // Wenn das Endedatum gesetzt ist und das Fälligkeitsdatum liegt zum oder
@@ -359,6 +357,36 @@ public class ZusatzbetragImpl extends AbstractDBObject implements Zusatzbetrag
     // dem Endedatum: nicht mehr ausführen
     if (getEndedatum() != null
         && getFaelligkeit().getTime() >= getEndedatum().getTime())
+    {
+      return false;
+    }
+    return true;
+  }
+
+  @Override
+  public boolean isAktiv(Date datum) throws RemoteException
+  {
+    if (!getMitglied().isAngemeldet(datum)
+        && !Einstellungen.getEinstellung().getZusatzbetragAusgetretene())
+    {
+      return false;
+    }
+    // Einmalige Ausführung
+    if (getIntervall().intValue() == IntervallZusatzzahlung.KEIN)
+    {
+      // Ist das Ausführungsdatum gesetzt?
+      if (getAusfuehrung() != null)
+      {
+        return false;
+      }
+      return (getFaelligkeit().getTime() <= datum.getTime());
+    }
+
+    // Wenn das Endedatum gesetzt ist und das Ausführungsdatum liegt hinter
+    // dem Endedatum: nicht mehr ausführen
+    if ((getEndedatum() != null
+        && getFaelligkeit().getTime() >= getEndedatum().getTime())
+        || getFaelligkeit().getTime() > datum.getTime())
     {
       return false;
     }

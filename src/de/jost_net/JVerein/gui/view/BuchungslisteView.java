@@ -26,8 +26,9 @@ import de.jost_net.JVerein.gui.action.BuchungNeuAction;
 import de.jost_net.JVerein.gui.action.BuchungsuebernahmeAction;
 import de.jost_net.JVerein.gui.action.DokumentationAction;
 import de.jost_net.JVerein.gui.control.BuchungsControl;
-import de.jost_net.JVerein.gui.control.BuchungsControl.Kontenart;
+import de.jost_net.JVerein.gui.control.BuchungsControl.Kontenfilter;
 import de.jost_net.JVerein.gui.control.BuchungsHeaderControl;
+import de.jost_net.JVerein.gui.parts.ToolTipButton;
 import de.willuhn.jameica.gui.AbstractView;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.GUI;
@@ -49,10 +50,7 @@ public class BuchungslisteView extends AbstractView
   {
     GUI.getView().setTitle("Buchungen");
     
-    final BuchungsControl control = new BuchungsControl(this, Kontenart.GELDKONTO);
-
-    LabelGroup group = new LabelGroup(getParent(), "Konto");
-    group.addLabelPair("Konto", control.getSuchKonto());
+    final BuchungsControl control = new BuchungsControl(this, Kontenfilter.GELDKONTO);
 
     TabFolder folder = new TabFolder(getParent(), SWT.V_SCROLL | SWT.BORDER);
     folder.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
@@ -61,21 +59,31 @@ public class BuchungslisteView extends AbstractView
     // Erster Tab
     TabGroup tabAllgemein = new TabGroup(folder, "Suche Buchungen", true, 2);
     LabelGroup labelgroup1 = new LabelGroup(tabAllgemein.getComposite(), "Filter");
-    ColumnLayout cl = new ColumnLayout(labelgroup1.getComposite(), 2);
+    ColumnLayout cl = new ColumnLayout(labelgroup1.getComposite(), 3);
+
     SimpleContainer left = new SimpleContainer(cl.getComposite());
+    SimpleContainer center = new SimpleContainer(cl.getComposite());
     SimpleContainer right = new SimpleContainer(cl.getComposite());
+
+    left.addLabelPair("Konto", control.getSuchKonto());
     left.addLabelPair("Buchungsart", control.getSuchBuchungsart());
     left.addLabelPair("Projekt", control.getSuchProjekt());
-    left.addLabelPair("Betrag", control.getSuchBetrag());
-    left.addLabelPair("Mitglied zugeordnet?", control.getSuchMitgliedZugeordnet());
-    right.addLabelPair("Von Datum", control.getVondatum());
-    right.addLabelPair("Bis Datum", control.getBisdatum());
+    left.addLabelPair("Splitbuchung", control.getSuchSplibuchung());
+
+    center.addLabelPair("Betrag", control.getSuchBetrag());
+    center.addLabelPair("Datum von", control.getVondatum());
+    center.addLabelPair("Datum bis", control.getBisdatum());
+
     right.addLabelPair("Enthaltener Text", control.getSuchtext());
+    right.addLabelPair("Mitglied zugeordnet?",
+        control.getSuchMitgliedZugeordnet());
     right.addLabelPair("Mitglied Name", control.getMitglied());
     
     ButtonArea buttons1 = new ButtonArea();
-    buttons1.addButton(control.getZurueckButton());
-    buttons1.addButton(control.getVorButton());
+    ToolTipButton zurueck = control.getZurueckButton();
+    buttons1.addButton(zurueck);
+    ToolTipButton vor = control.getVorButton();
+    buttons1.addButton(vor);
     Button reset = new Button("Filter-Reset", new Action()
     {
       @Override
@@ -96,6 +104,8 @@ public class BuchungslisteView extends AbstractView
     }, null, true, "search.png");
     buttons1.addButton(suchen);
     labelgroup1.addButtonArea(buttons1);
+    zurueck.setToolTipText("Datumsbereich zurück");
+    vor.setToolTipText("Datumsbereich vowärts");
 
     // Zweiter Tab
     final BuchungsHeaderControl headerControl = new BuchungsHeaderControl(

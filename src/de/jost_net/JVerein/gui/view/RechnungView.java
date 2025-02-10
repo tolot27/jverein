@@ -55,6 +55,7 @@ public class RechnungView extends AbstractView
     middle.addInput(control.getVorname());
     middle.addInput(control.getStrasse());
     middle.addInput(control.getAdressierungszusatz());
+    middle.addInput(control.getLeitwegID()); 
     
     SimpleContainer rigth = new SimpleContainer(cl.getComposite());
     rigth.addInput(control.getPlz());
@@ -64,13 +65,16 @@ public class RechnungView extends AbstractView
     rigth.addInput(control.getBic());
     rigth.addInput(control.getMandatdatum());
     rigth.addInput(control.getMandatid());
+    rigth.addInput(control.getZahlungsweg());
     
-    LabelGroup cont = new LabelGroup(getParent(), "Sollbuchungen", true);
-    cont.addPart(control.getBuchungenList());
+    LabelGroup cont = new LabelGroup(getParent(), "Rechnungspositionen", true);
+    cont.addPart(control.getSollbuchungPositionListPart());
 
     ButtonArea buttons = new ButtonArea();
     buttons.addButton("Hilfe", new DokumentationAction(),
         DokumentationUtil.RECHNUNG, false, "question-circle.png");
+    buttons.addButton(control.getRechnungDruckUndMailButton());
+    buttons.addButton(control.getMahnungDruckUndMailButton());
     buttons.paint(this.getParent());
   }
 }

@@ -8,6 +8,7 @@ on:
       - plugin.xml
 jobs:
   merge-branch:
+    if: github.repository == 'openjverein/jverein'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout openjverein
@@ -25,11 +26,13 @@ jobs:
           git checkout feature-3.1.0
           git pull
           git merge master --no-ff --no-commit
-          # Abort previous merge check
-          git merge --abort
-          git reset --hard HEAD
         continue-on-error: true
 
+      - name: Abort previous merge check
+        run: |
+          git merge --abort
+          git reset --hard HEAD
+      
       - name: Merge master into feature-3.1.0
         run: |
           # Merge master branch into feature with feature as king (ours)

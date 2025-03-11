@@ -1356,11 +1356,11 @@ public class MitgliedControl extends FilterControl
           Mitglied m = (Mitglied) zahler.getValue();
           if (m != null && m.getID() != null)
           {
-            getMitglied().setZahlerID(Long.valueOf(m.getID()));
+            getMitglied().setVollZahlerID(Long.valueOf(m.getID()));
           }
           else
           {
-            getMitglied().setZahlerID(null);
+            getMitglied().setVollZahlerID(null);
           }
           refreshFamilienangehoerigeTable();
         }
@@ -1654,8 +1654,8 @@ public class MitgliedControl extends FilterControl
     DBService service = Einstellungen.getDBService();
     DBIterator<Mitglied> famiter = service.createList(Mitglied.class);
     famiter.addFilter("zahlerid = ? or zahlerid = ? or id = ? or id = ?",
-        getMitglied().getID(), getMitglied().getZahlerID(),
-        getMitglied().getID(), getMitglied().getZahlerID());
+        getMitglied().getID(), getMitglied().getVollZahlerID(),
+        getMitglied().getID(), getMitglied().getVollZahlerID());
     famiter.setOrder("ORDER BY name, vorname");
     while (famiter.hasNext())
     {
@@ -2311,7 +2311,7 @@ public class MitgliedControl extends FilterControl
           m.setBeitragsgruppe(Integer.valueOf(bg.getID()));
           if (bg.getBeitragsArt() != ArtBeitragsart.FAMILIE_ANGEHOERIGER)
           {
-            m.setZahlerID(null);
+            m.setVollZahlerID(null);
           }
         }
         catch (NullPointerException e)

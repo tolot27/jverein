@@ -245,7 +245,7 @@ public class SollbuchungControl extends DruckMailControl
     }
     boolean mitVollzahler = false;
     if (getMitglied().getValue() != null
-        && ((Mitglied) getMitglied().getValue()).getZahlerID() != null)
+        && ((Mitglied) getMitglied().getValue()).getVollZahlerID() != null)
       mitVollzahler = true;
     ArrayList<Zahlungsweg> weg = Zahlungsweg.getArray(mitVollzahler);
 
@@ -917,7 +917,7 @@ public class SollbuchungControl extends DruckMailControl
         {
           if (z == null)
           {
-            getZahler().setValue(m.getZahler());
+            getZahler().setValue(m.getVollZahler());
           }
         }
         else

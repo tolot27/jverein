@@ -155,7 +155,7 @@ public class MitgliedMenu extends ContextMenu
             m.setEintritt("");
             m.setAustritt("");
             m.setKuendigung("");
-            m.setZahlerID(null);
+            m.setVollZahlerID(null);
             DBService service = Einstellungen.getDBService();
             // Sekundäre Beitragsgruppen löschen
             DBIterator<SekundaereBeitragsgruppe> sit = service

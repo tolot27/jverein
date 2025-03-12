@@ -1158,7 +1158,6 @@ public class MitgliedControl extends FilterControl
           if (bg != null
               && bg.getBeitragsArt() == ArtBeitragsart.FAMILIE_ANGEHOERIGER)
           {
-            getZukuenftigeBeitraegeView().setVisible(false);
             if (zahler != null)
             {
               zahler.setEnabled(true);

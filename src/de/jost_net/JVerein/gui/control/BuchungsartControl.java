@@ -412,8 +412,10 @@ public class BuchungsartControl extends FilterControl
 
   /**
    * This method stores the project using the current values.
+   * 
+   * @throws ApplicationException
    */
-  public void handleStore()
+  public void handleStore() throws ApplicationException
   {
     try
     {
@@ -424,8 +426,7 @@ public class BuchungsartControl extends FilterControl
       }
       catch (NullPointerException e)
       {
-        GUI.getStatusBar().setErrorText("Nummer fehlt");
-        return;
+        throw new ApplicationException("Nummer fehlt");
       }
       b.setBezeichnung((String) getBezeichnung().getValue());
       ArtBuchungsart ba = (ArtBuchungsart) getArt().getValue();
@@ -474,15 +475,8 @@ public class BuchungsartControl extends FilterControl
               "Regulärer Ausdruck ungültig: " + pse.getDescription());
         }
       }
-      try
-      {
-        b.store();
-        GUI.getStatusBar().setSuccessText("Buchungsart gespeichert");
-      }
-      catch (ApplicationException e)
-      {
-        GUI.getStatusBar().setErrorText(e.getMessage());
-      }
+      b.store();
+      GUI.getStatusBar().setSuccessText("Buchungsart gespeichert");
     }
     catch (ApplicationException e)
     {
@@ -492,7 +486,7 @@ public class BuchungsartControl extends FilterControl
     {
       String fehler = "Fehler bei speichern der Buchungsart";
       Logger.error(fehler, e);
-      GUI.getStatusBar().setErrorText(fehler);
+      throw new ApplicationException(fehler);
     }
   }
 

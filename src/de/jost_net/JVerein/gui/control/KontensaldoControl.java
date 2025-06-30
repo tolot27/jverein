@@ -196,7 +196,7 @@ public class KontensaldoControl extends AbstractSaldoControl
     it.addGroupBy("konto.id");
     it.addGroupBy("konto.kontoart");
 
-    it.setOrder("ORDER BY konto.bezeichnung");
+    it.setOrder("ORDER BY konto.nummer");
 
     return it;
   }

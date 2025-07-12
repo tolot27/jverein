@@ -38,6 +38,7 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.TableItem;
 
 import de.jost_net.JVerein.Einstellungen;
+import de.jost_net.JVerein.Einstellungen.Property;
 import de.jost_net.JVerein.DBTools.DBTransaction;
 import de.jost_net.JVerein.Queries.BuchungQuery;
 import de.jost_net.JVerein.gui.action.BuchungAction;
@@ -643,7 +644,7 @@ public class BuchungsControl extends AbstractControl
     }
     buchungsart = new BuchungsartInput().getBuchungsartInput(buchungsart,
       getBuchung().getBuchungsart(), buchungsarttyp.BUCHUNGSART,
-      Einstellungen.getEinstellung().getBuchungBuchungsartAuswahl());
+      (Integer) Einstellungen.getEinstellung(Property.BUCHUNGBUCHUNGSARTAUSWAHL));
     if (!getBuchung().getSpeicherung())
     {
       buchungsart.setMandatory(true);
@@ -691,7 +692,7 @@ public class BuchungsControl extends AbstractControl
     buchungsklasse = new BuchungsklasseInput().getBuchungsklasseInput(buchungsklasse,
         getBuchung().getBuchungsklasse());
     if (!getBuchung().getSpeicherung() && 
-        Einstellungen.getEinstellung().getBuchungsklasseInBuchung())
+        (Boolean) Einstellungen.getEinstellung(Property.BUCHUNGSKLASSEINBUCHUNG))
     {
       buchungsklasse.setMandatory(true);
     }
@@ -1166,7 +1167,7 @@ public class BuchungsControl extends AbstractControl
   {
     try
     {
-      if (!Einstellungen.getEinstellung().getProjekteAnzeigen())
+      if (!(Boolean) Einstellungen.getEinstellung(Property.PROJEKTEANZEIGEN))
       {
         return null;
       }
@@ -1379,7 +1380,7 @@ public class BuchungsControl extends AbstractControl
           return (Boolean) o ? "\u2705" : "";
         }
       });
-      if (Einstellungen.getEinstellung().getDokumentenspeicherung())
+      if ((Boolean) Einstellungen.getEinstellung(Property.DOKUMENTENSPEICHERUNG))
       {
         buchungsList.addColumn("D", "document");
       }
@@ -1422,7 +1423,7 @@ public class BuchungsControl extends AbstractControl
           return s;
         }
       });
-      if (Einstellungen.getEinstellung().getBuchungsklasseInBuchung())
+      if ((Boolean) Einstellungen.getEinstellung(Property.BUCHUNGSKLASSEINBUCHUNG))
       {
         buchungsList.addColumn("Buchungsklasse", "buchungsklasse",
             new BuchungsklasseFormatter());
@@ -1432,11 +1433,11 @@ public class BuchungsControl extends AbstractControl
           new BuchungsartFormatter());
       buchungsList.addColumn("Betrag", "betrag",
           new CurrencyFormatter("", Einstellungen.DECIMALFORMAT));
-      if (Einstellungen.getEinstellung().getOptiert() && geldkonto)
+      if ((Boolean) Einstellungen.getEinstellung(Property.OPTIERT) && geldkonto)
       {
         buchungsList.addColumn("Netto", "netto",
             new CurrencyFormatter("", Einstellungen.DECIMALFORMAT));
-        if (Einstellungen.getEinstellung().getSteuerInBuchung())
+        if ((Boolean) Einstellungen.getEinstellung(Property.STEUERINBUCHUNG))
         {
           buchungsList.addColumn("Steuer", "steuer", o -> {
             if (o == null)
@@ -1459,7 +1460,7 @@ public class BuchungsControl extends AbstractControl
         buchungsList.addColumn(new Column(Buchung.SOLLBUCHUNG, "Mitglied",
           new SollbuchungFormatter(), false, Column.ALIGN_AUTO,
           Column.SORT_BY_DISPLAY));
-      if (Einstellungen.getEinstellung().getProjekteAnzeigen())
+      if ((Boolean) Einstellungen.getEinstellung(Property.PROJEKTEANZEIGEN))
       {
         buchungsList.addColumn("Projekt", "projekt", new ProjektFormatter());
       }
@@ -1512,7 +1513,7 @@ public class BuchungsControl extends AbstractControl
       splitbuchungsList.addColumn("Blatt", "blattnummer");
       splitbuchungsList.addColumn("Name", "name");
       splitbuchungsList.addColumn("Verwendungszweck", "zweck");
-      if (Einstellungen.getEinstellung().getBuchungsklasseInBuchung())
+      if ((Boolean) Einstellungen.getEinstellung(Property.BUCHUNGSKLASSEINBUCHUNG))
       {
         splitbuchungsList.addColumn("Buchungsklasse", "buchungsklasse",
             new BuchungsklasseFormatter());
@@ -1521,11 +1522,11 @@ public class BuchungsControl extends AbstractControl
           new BuchungsartFormatter());
       splitbuchungsList.addColumn("Betrag", "betrag",
           new CurrencyFormatter("", Einstellungen.DECIMALFORMAT));
-      if (Einstellungen.getEinstellung().getOptiert())
+      if ((Boolean) Einstellungen.getEinstellung(Property.OPTIERT))
       {
         splitbuchungsList.addColumn("Netto", "netto",
             new CurrencyFormatter("", Einstellungen.DECIMALFORMAT));
-        if (Einstellungen.getEinstellung().getSteuerInBuchung())
+        if ((Boolean) Einstellungen.getEinstellung(Property.STEUERINBUCHUNG))
         {
           splitbuchungsList.addColumn("Steuer", "steuer", o -> {
             if (o == null)
@@ -1546,7 +1547,7 @@ public class BuchungsControl extends AbstractControl
       }
       splitbuchungsList.addColumn("Mitglied", Buchung.SOLLBUCHUNG,
           new SollbuchungFormatter());
-      if (Einstellungen.getEinstellung().getProjekteAnzeigen())
+      if ((Boolean) Einstellungen.getEinstellung(Property.PROJEKTEANZEIGEN))
       {
         splitbuchungsList.addColumn("Projekt", "projekt",
             new ProjektFormatter());
@@ -1639,7 +1640,8 @@ public class BuchungsControl extends AbstractControl
         fd.setFilterPath(path);
       }
       fd.setFileName(new Dateiname("buchungen", "",
-          Einstellungen.getEinstellung().getDateinamenmuster(), "PDF").get());
+          (String) Einstellungen.getEinstellung(Property.DATEINAMENMUSTER), "PDF")
+              .get());
 
       final String s = fd.open();
 
@@ -1676,7 +1678,8 @@ public class BuchungsControl extends AbstractControl
         fd.setFilterPath(path);
       }
       fd.setFileName(new Dateiname("buchungen", "",
-          Einstellungen.getEinstellung().getDateinamenmuster(), "CSV").get());
+          (String) Einstellungen.getEinstellung(Property.DATEINAMENMUSTER), "CSV")
+              .get());
 
       final String s = fd.open();
 
@@ -1753,7 +1756,8 @@ public class BuchungsControl extends AbstractControl
         fd.setFilterPath(path);
       }
       fd.setFileName(new Dateiname("buchungsjournal", "",
-          Einstellungen.getEinstellung().getDateinamenmuster(), "PDF").get());
+          (String) Einstellungen.getEinstellung(Property.DATEINAMENMUSTER), "PDF")
+              .get());
 
       final String s = fd.open();
 
@@ -2189,13 +2193,11 @@ public class BuchungsControl extends AbstractControl
       }
       Calendar calendar = Calendar.getInstance();
       Integer year = calendar.get(Calendar.YEAR);
-      Date startGJ = Datum.toDate(
-          Einstellungen.getEinstellung().getBeginnGeschaeftsjahr() + year);
+      Date startGJ = Datum.toDate((String) Einstellungen.getEinstellung(Property.BEGINNGESCHAEFTSJAHR) + year);
       if (calendar.getTime().before(startGJ))
       {
-        year = year - 1;
-        startGJ = Datum.toDate(
-            Einstellungen.getEinstellung().getBeginnGeschaeftsjahr() + year);
+        year = year -1;
+        startGJ = Datum.toDate((String) Einstellungen.getEinstellung(Property.BEGINNGESCHAEFTSJAHR) + year);
       }
       if (isVondatumAktiv())
       {

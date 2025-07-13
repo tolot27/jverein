@@ -174,6 +174,7 @@ public class SollbuchungControl extends DruckMailControl
     }
     sollbuchung = Einstellungen.getDBService().createObject(Sollbuchung.class,
         ((Sollbuchung) getCurrentObject()).getID());
+    GUI.getCurrentView().setCurrentObject(sollbuchung);
     return sollbuchung;
   }
 

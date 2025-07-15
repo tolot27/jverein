@@ -89,6 +89,7 @@ import de.jost_net.JVerein.util.JVDateFormatTTMMJJJJ;
 import de.willuhn.datasource.GenericObject;
 import de.willuhn.datasource.pseudo.PseudoIterator;
 import de.willuhn.datasource.rmi.DBIterator;
+import de.willuhn.datasource.rmi.ObjectNotFoundException;
 import de.willuhn.jameica.gui.AbstractControl;
 import de.willuhn.jameica.gui.AbstractView;
 import de.willuhn.jameica.gui.Action;
@@ -186,6 +187,8 @@ public class BuchungsControl extends AbstractControl
   
   private TextInput mitglied = null;
 
+  private SelectInput suchsteuer;
+
   private CheckboxInput verzicht;
 
   private Buchung buchung;
@@ -201,6 +204,8 @@ public class BuchungsControl extends AbstractControl
   public static final String PROJEKT = "suchprojekt";
 
   public static final String MITGLIEDZUGEORDNET = "suchmitgliedzugeordnet";
+
+  public static final String SUCHSTEUER = "suchsteuer";
 
   private Vector<Listener> changeKontoListener = new Vector<>();
   
@@ -536,6 +541,55 @@ public class BuchungsControl extends AbstractControl
   public boolean isMitgliedAktiv()
   {
     return mitglied != null;
+  }
+
+  public SelectInput getSuchSteuer() throws RemoteException
+  {
+    if (suchsteuer != null)
+    {
+      return suchsteuer;
+    }
+    ArrayList<Steuer> steuerliste = new ArrayList<>();
+    Steuer s1 = (Steuer) Einstellungen.getDBService().createObject(Steuer.class,
+        null);
+    s1.setName("Ohne Steuer");
+    steuerliste.add(s1);
+
+    DBIterator<Steuer> it = Einstellungen.getDBService()
+        .createList(Steuer.class);
+    it.setOrder("order by name");
+    while (it.hasNext())
+    {
+      steuerliste.add(it.next());
+    }
+    int swert = settings.getInt(settingsprefix + SUCHSTEUER, -2);
+    Steuer letztesuche = null;
+    if (swert == 0)
+    {
+      letztesuche = steuerliste.get(0);
+    }
+    else
+    {
+      try
+      {
+        letztesuche = (Steuer) Einstellungen.getDBService()
+            .createObject(Steuer.class, String.valueOf(swert));
+      }
+      catch (ObjectNotFoundException e)
+      {
+        //
+      }
+    }
+    suchsteuer = new SelectInput(steuerliste, letztesuche);
+    suchsteuer.setAttribute("name");
+    suchsteuer.setPleaseChoose("Alle");
+    suchsteuer.addListener(new FilterListener());
+    return suchsteuer;
+  }
+
+  public boolean isSuchSteuerAktiv()
+  {
+    return suchsteuer != null;
   }
 
   public CheckboxInput getVerzicht() throws RemoteException
@@ -1361,9 +1415,31 @@ public class BuchungsControl extends AbstractControl
       }
     }
 
+    Steuer steuer = null;
+    if (isSuchSteuerAktiv())
+    {
+      if (getSuchSteuer().getValue() != null)
+      {
+        steuer = (Steuer) getSuchSteuer().getValue();
+        if (steuer.isNewObject())
+        {
+          settings.setAttribute(settingsprefix + SUCHSTEUER, 0);
+        }
+        else
+        {
+          settings.setAttribute(settingsprefix + SUCHSTEUER, steuer.getID());
+        }
+        params.put("Steuer ", steuer.getName());
+      }
+      else
+      {
+        settings.setAttribute(settingsprefix + SUCHSTEUER, -2);
+      }
+    }
+
     query = new BuchungQuery(dv, db, k, b, p, suchtext,
         suchbetrag, mvalue, mitglied, geldkonto, split,
-        ungeprueft);
+        ungeprueft, steuer);
 
     if (buchungsList == null)
     {
@@ -2220,6 +2296,11 @@ public class BuchungsControl extends AbstractControl
       {
         mitglied.setValue("");
       }
+      if (isSuchSteuerAktiv())
+      {
+        suchsteuer.setValue(null);
+      }
+
       refreshBuchungsList();
     }
     catch (Exception ex)

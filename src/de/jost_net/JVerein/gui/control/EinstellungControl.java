@@ -2436,7 +2436,7 @@ public class EinstellungControl extends AbstractControl
       if (verrechnungskonto.getValue() != null)
       {
         Einstellungen.setEinstellung(Property.VERRECHNUNGSKONTOID,
-            (Long.parseLong(
+            (Integer.parseInt(
                 (String) ((Konto) verrechnungskonto.getValue()).getID())));
       }
       DBTransaction.commit();

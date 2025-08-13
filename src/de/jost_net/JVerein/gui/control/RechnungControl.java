@@ -32,6 +32,7 @@ import de.jost_net.JVerein.gui.input.IBANInput;
 import de.jost_net.JVerein.gui.input.MailAuswertungInput;
 import de.jost_net.JVerein.gui.input.PersonenartInput;
 import de.jost_net.JVerein.gui.menu.RechnungMenu;
+import de.jost_net.JVerein.gui.parts.ButtonRtoL;
 import de.jost_net.JVerein.gui.parts.JVereinTablePart;
 import de.jost_net.JVerein.gui.parts.SollbuchungPositionListPart;
 import de.jost_net.JVerein.gui.view.MahnungMailView;
@@ -310,12 +311,18 @@ public class RechnungControl extends DruckMailControl implements Savable
         // Es ist egal ob der Betrag positiv oder negativ eingetragen wurde
         limit = Math.abs((Double) getDoubleAusw().getValue());
       }
-      String sql = "SELECT DISTINCT " + Sollbuchung.T_RECHNUNG + ", "
-          + Sollbuchung.T_BETRAG + ", " + "sum(buchung.betrag) FROM "
-          + Sollbuchung.TABLE_NAME + " LEFT JOIN buchung on "
-          + Sollbuchung.TABLE_NAME_ID + " = " + Buchung.T_SOLLBUCHUNG
-          + " WHERE " + Sollbuchung.T_RECHNUNG + " is not null " + " group by "
-          + Sollbuchung.TABLE_NAME_ID;
+
+      ExtendedDBIterator<PseudoDBObject> it = new ExtendedDBIterator<>(
+          Sollbuchung.TABLE_NAME);
+      it.addColumn(Sollbuchung.T_RECHNUNG + " as rid");
+      it.addColumn("sum(cast(COALESCE(buchung.ist,0) - COALESCE("
+          + Sollbuchung.T_BETRAG + ",0) AS DECIMAL(10,2))) as dif");
+      it.leftJoin(
+          "(SELECT sum(COALESCE((betrag),0)) AS ist," + Buchung.T_SOLLBUCHUNG
+              + " FROM buchung GROUP BY " + Buchung.T_SOLLBUCHUNG
+              + ") AS buchung",
+          Buchung.T_SOLLBUCHUNG + " = " + Sollbuchung.TABLE_NAME_ID);
+
       if (getDifferenz().getValue() == DIFFERENZ.FEHLBETRAG)
       {
         it.addHaving("dif < -" + limit.toString());
@@ -450,7 +457,7 @@ public class RechnungControl extends DruckMailControl implements Savable
         (Integer) Einstellungen.getEinstellung(Property.ZAEHLERLAENGE), "0"));
     nummer.setName("Rechnungsnummer");
     nummer.disable();
-    
+
     return nummer;
   }
 
@@ -718,10 +725,10 @@ public class RechnungControl extends DruckMailControl implements Savable
     return kommentar;
   }
 
-  public Button getRechnungDruckUndMailButton()
+  public ButtonRtoL getRechnungDruckUndMailButton()
   {
 
-    Button b = new Button("Druck und Mail", new Action()
+    ButtonRtoL b = new ButtonRtoL("Druck und Mail", new Action()
     {
 
       @Override
@@ -734,10 +741,10 @@ public class RechnungControl extends DruckMailControl implements Savable
     return b;
   }
 
-  public Button getMahnungDruckUndMailButton()
+  public ButtonRtoL getMahnungDruckUndMailButton()
   {
 
-    Button b = new Button("Mahnung Druck und Mail", new Action()
+    ButtonRtoL b = new ButtonRtoL("Mahnung Druck und Mail", new Action()
     {
 
       @Override

@@ -17,8 +17,6 @@
 package de.jost_net.JVerein.gui.control;
 
 import java.rmi.RemoteException;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -48,13 +46,14 @@ import de.jost_net.JVerein.rmi.JVereinDBObject;
 import de.jost_net.JVerein.rmi.Mitglied;
 import de.jost_net.JVerein.rmi.Rechnung;
 import de.jost_net.JVerein.rmi.Sollbuchung;
+import de.jost_net.JVerein.server.ExtendedDBIterator;
+import de.jost_net.JVerein.server.PseudoDBObject;
 import de.jost_net.JVerein.util.JVDateFormatTTMMJJJJ;
 import de.jost_net.JVerein.util.StringTool;
 import de.willuhn.datasource.GenericIterator;
 import de.willuhn.datasource.GenericObject;
 import de.willuhn.datasource.pseudo.PseudoIterator;
 import de.willuhn.datasource.rmi.DBIterator;
-import de.willuhn.datasource.rmi.ResultSetExtractor;
 import de.willuhn.jameica.gui.AbstractView;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.GUI;
@@ -319,33 +318,23 @@ public class RechnungControl extends DruckMailControl implements Savable
           + Sollbuchung.TABLE_NAME_ID;
       if (getDifferenz().getValue() == DIFFERENZ.FEHLBETRAG)
       {
-        sql += " HAVING CAST(COALESCE(SUM(buchung.betrag),0) AS DECIMAL(10,2)) < "
-            + Sollbuchung.T_BETRAG + " - " + limit.toString();
+        it.addHaving("dif < -" + limit.toString());
       }
       else
       {
-        sql += " HAVING CAST(COALESCE(SUM(buchung.betrag),0) AS DECIMAL(10,2)) > "
-            + Sollbuchung.T_BETRAG + " + " + limit.toString();
+        it.addHaving("dif > " + limit.toString());
       }
-
-      @SuppressWarnings("unchecked")
-      ArrayList<String> diffIds = (ArrayList<String>) Einstellungen
-          .getDBService().execute(sql, null, new ResultSetExtractor()
-          {
-            @Override
-            public Object extract(ResultSet rs)
-                throws RemoteException, SQLException
-            {
-              ArrayList<String> list = new ArrayList<>();
-              while (rs.next())
-              {
-                list.add(rs.getString(1));
-              }
-              return list;
-            }
-          });
+      it.addGroupBy(Sollbuchung.T_RECHNUNG);
+      ArrayList<String> diffIds = new ArrayList<>();
+      while (it.hasNext())
+      {
+        PseudoDBObject o = it.next();
+        diffIds.add(String.valueOf(o.getAttribute("rid")));
+      }
       if (diffIds.size() == 0)
+      {
         return PseudoIterator.fromArray(new GenericObject[] {});
+      }
       rechnungenIt
           .addFilter("rechnung.id in (" + String.join(",", diffIds) + ")");
     }

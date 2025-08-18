@@ -1578,15 +1578,19 @@ public class BuchungsControl extends VorZurueckControl implements Savable
     else
     {
       buchungsList.updateSaldo((Konto) getSuchKonto().getValue());
+
       buchungsList.removeAll();
 
       for (Buchung bu : buchungen)
       {
         buchungsList.addItem(bu);
       }
+
+      // Summenzeile neu laden
+      buchungsList.featureEvent(
+          de.willuhn.jameica.gui.parts.table.Feature.Event.REFRESH, null);
       buchungsList.sort();
     }
-
     informKontoChangeListener();
 
     return buchungsList;
@@ -1797,7 +1801,6 @@ public class BuchungsControl extends VorZurueckControl implements Savable
       BackgroundTask t = new BackgroundTask()
       {
 
-        @SuppressWarnings("unused")
         @Override
         public void run(ProgressMonitor monitor) throws ApplicationException
         {

@@ -533,8 +533,8 @@ public class AbrechnungSEPA
     Mitglied mZahler = m.getZahler();
     if (((Integer) Einstellungen.getEinstellung(
         Property.BEITRAGSMODEL) == Beitragsmodel.FLEXIBEL.getKey())
-        && (mZahler.getZahlungstermin() != null && !mZahler.getZahlungstermin()
-            .isAbzurechnen(param.abrechnungsmonat)))
+        && (m.getZahlungstermin() != null
+            && !m.getZahlungstermin().isAbzurechnen(param.abrechnungsmonat)))
     {
       return null;
     }
@@ -544,8 +544,8 @@ public class AbrechnungSEPA
       betr = BeitragsUtil.getBeitrag(
           Beitragsmodel.getByKey(
               (Integer) Einstellungen.getEinstellung(Property.BEITRAGSMODEL)),
-          mZahler.getZahlungstermin(), mZahler.getZahlungsrhythmus(), bg,
-          param.stichtag, m);
+          m.getZahlungstermin(), m.getZahlungsrhythmus(), bg, param.stichtag,
+          m);
     }
     catch (NullPointerException e)
     {

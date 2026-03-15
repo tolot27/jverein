@@ -17,7 +17,6 @@
 package de.jost_net.JVerein.io;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
@@ -63,10 +62,8 @@ import de.jost_net.JVerein.keys.VorlageTyp;
 import de.jost_net.JVerein.keys.Zahlungsrhythmus;
 import de.jost_net.JVerein.keys.Zahlungsweg;
 import de.jost_net.JVerein.rmi.Abrechnungslauf;
-import de.jost_net.JVerein.rmi.AbstractDokument;
 import de.jost_net.JVerein.rmi.Beitragsgruppe;
 import de.jost_net.JVerein.rmi.Buchung;
-import de.jost_net.JVerein.rmi.BuchungDokument;
 import de.jost_net.JVerein.rmi.Formular;
 import de.jost_net.JVerein.rmi.Konto;
 import de.jost_net.JVerein.rmi.Kursteilnehmer;
@@ -100,7 +97,6 @@ import de.willuhn.jameica.hbci.rmi.SepaLastSequenceType;
 import de.willuhn.jameica.hbci.rmi.SepaLastType;
 import de.willuhn.jameica.hbci.rmi.SepaLastschrift;
 import de.willuhn.jameica.hbci.rmi.SepaSammelLastschrift;
-import de.willuhn.jameica.messaging.QueryMessage;
 import de.willuhn.jameica.messaging.StatusBarMessage;
 import de.willuhn.jameica.system.Application;
 import de.willuhn.jameica.system.BackgroundTask;
@@ -109,7 +105,7 @@ import de.willuhn.logging.Logger;
 import de.willuhn.util.ApplicationException;
 import de.willuhn.util.ProgressMonitor;
 
-public class AbrechnungSEPA
+public class AbrechnungSEPA extends SEPASupport
 {
   private int counter = 0;
 
@@ -1111,8 +1107,8 @@ public class AbrechnungSEPA
         assert false : "Personentyp ist nicht implementiert";
     }
     ls.setBetrag(zahler.getBetrag().doubleValue());
-    ls.setBIC(zahler.getBic());
-    ls.setIBAN(zahler.getIban());
+    ls.setBic(zahler.getBic());
+    ls.setIban(zahler.getIban());
     ls.setMandatDatum(zahler.getMandatdatum());
     ls.setMandatSequence(zahler.getMandatsequence().getTxt());
     ls.setMandatID(zahler.getMandatid());
@@ -1216,6 +1212,11 @@ public class AbrechnungSEPA
         sollb.setZweck1(zweck);
       }
       sollb.updateForced();
+      if (re != null)
+      {
+        re.setRechnungstext(zweck);
+        re.store();
+      }
     }
     if (spArray != null && adress != null && adress instanceof Kursteilnehmer)
     {
@@ -1248,64 +1249,7 @@ public class AbrechnungSEPA
 
       if (re != null && param.rechnungsdokumentSpeichern)
       {
-        FileInputStream fis = null;
-        try
-        {
-          // PDF erstellen
-          String dateiname = VorlageUtil.getName(
-              VorlageTyp.RECHNUNG_MITGLIED_DATEINAME, re, re.getMitglied());
-          File file = File.createTempFile(dateiname, ".pdf");
-          FormularAufbereitung aufbereitung = new FormularAufbereitung(file,
-              false, true);
-          aufbereitung.writeForm(re.getFormular(), map);
-          aufbereitung.closeFormular();
-
-          fis = new FileInputStream(file);
-          if (fis.available() <= 0)
-          {
-            throw new ApplicationException("Datei ist leer");
-          }
-          AbstractDokument doc = Einstellungen.getDBService()
-              .createObject(BuchungDokument.class, null);
-          doc.setReferenz(Long.valueOf(buchung.getID()));
-
-          // Dokument speichern
-          String locverz = "buchungen" + doc.getReferenz();
-          QueryMessage qm = new QueryMessage(locverz, fis);
-          Application.getMessagingFactory()
-              .getMessagingQueue("jameica.messaging.put").sendSyncMessage(qm);
-
-          // Satz in die DB schreiben
-          doc.setBemerkung(
-              dateiname.length() > 50 ? dateiname.substring(0, 50) : dateiname);
-          String uuid = qm.getData().toString();
-          doc.setUUID(uuid);
-          doc.setDatum(datum);
-          doc.store();
-
-          // Zusätzliche Eigenschaft speichern
-          Map<String, String> filenameMap = new HashMap<>();
-          filenameMap.put("filename", file.getName());
-          qm = new QueryMessage(uuid, filenameMap);
-          Application.getMessagingFactory()
-              .getMessagingQueue("jameica.messaging.putmeta").sendMessage(qm);
-          file.delete();
-        }
-        catch (IOException | DocumentException e)
-        {
-          Logger.error(
-              "Fehler beim Speichern der Rechnung als Buchungsdokument", e);
-        }
-        finally
-        {
-          try
-          {
-            fis.close();
-          }
-          catch (IOException ignore)
-          {
-          }
-        }
+        storeBuchungsDokument(re, buchung, datum, map);
       }
 
       if (sollb != null)
@@ -1315,23 +1259,6 @@ public class AbrechnungSEPA
       }
     }
     return zweck;
-  }
-
-  private Konto getKonto() throws RemoteException, ApplicationException
-  {
-    if (Einstellungen.getEinstellung(Property.VERRECHNUNGSKONTOID) == null)
-    {
-      throw new ApplicationException(
-          "Verrechnungskonto nicht gesetzt. Unter Administration->Einstellungen->Abrechnung erfassen.");
-    }
-    Konto k = Einstellungen.getDBService().createObject(Konto.class,
-        Einstellungen.getEinstellung(Property.VERRECHNUNGSKONTOID).toString());
-    if (k == null)
-    {
-      throw new ApplicationException(
-          "Verrechnungskonto nicht gefunden. Unter Administration->Einstellungen->Abrechnung erfassen.");
-    }
-    return k;
   }
 
   private void checkSEPA(AbrechnungSEPAParam param, Mitglied m,

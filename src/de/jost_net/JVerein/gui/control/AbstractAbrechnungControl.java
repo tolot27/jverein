@@ -37,8 +37,10 @@ import de.jost_net.JVerein.Variable.RechnungMap;
 import de.jost_net.JVerein.gui.action.BugObjektEditAction;
 import de.jost_net.JVerein.gui.action.DokumentationAction;
 import de.jost_net.JVerein.gui.action.InsertVariableDialogAction;
+import de.jost_net.JVerein.gui.dialogs.JVereinYesNoDialog;
 import de.jost_net.JVerein.gui.input.DisableTextAreaInput;
 import de.jost_net.JVerein.gui.input.FormularInput;
+import de.jost_net.JVerein.gui.input.JVereinDateInput;
 import de.jost_net.JVerein.gui.menu.BugListMenu;
 import de.jost_net.JVerein.gui.parts.JVereinTablePart;
 import de.jost_net.JVerein.io.AbrechnungSEPA;
@@ -59,9 +61,7 @@ import de.willuhn.datasource.rmi.ObjectNotFoundException;
 import de.willuhn.jameica.gui.Action;
 import de.willuhn.jameica.gui.GUI;
 import de.willuhn.jameica.gui.dialogs.AbstractDialog;
-import de.willuhn.jameica.gui.dialogs.YesNoDialog;
 import de.willuhn.jameica.gui.input.CheckboxInput;
-import de.willuhn.jameica.gui.input.DateInput;
 import de.willuhn.jameica.gui.input.LabelInput;
 import de.willuhn.jameica.gui.input.SelectInput;
 import de.willuhn.jameica.gui.input.TextInput;
@@ -85,9 +85,9 @@ public abstract class AbstractAbrechnungControl
 
   protected LabelInput status;
 
-  private DateInput faelligkeit;
+  private JVereinDateInput faelligkeit;
 
-  private DateInput stichtag;
+  private JVereinDateInput stichtag;
 
   private CheckboxInput sollbuchungenzusammenfassen;
 
@@ -107,7 +107,7 @@ public abstract class AbstractAbrechnungControl
 
   private TextInput rechnungstext;
 
-  private DateInput rechnungsdatum;
+  private JVereinDateInput rechnungsdatum;
 
   private DisableTextAreaInput rechnungskommentar;
 
@@ -140,7 +140,7 @@ public abstract class AbstractAbrechnungControl
     return status;
   }
 
-  public DateInput getFaelligkeit() throws RemoteException
+  public JVereinDateInput getFaelligkeit() throws RemoteException
   {
     if (faelligkeit != null)
     {
@@ -150,7 +150,8 @@ public abstract class AbstractAbrechnungControl
     Bankarbeitstage bat = new Bankarbeitstage();
     cal = bat.getCalendar(cal,
         1 + (Integer) Einstellungen.getEinstellung(Property.SEPADATUMOFFSET));
-    this.faelligkeit = new DateInput(cal.getTime(), new JVDateFormatTTMMJJJJ());
+    this.faelligkeit = new JVereinDateInput(cal.getTime(),
+        new JVDateFormatTTMMJJJJ());
     this.faelligkeit.setTitle("Fälligkeit");
     this.faelligkeit.setText("Bitte Fälligkeitsdatum wählen");
     faelligkeit.addListener(event -> {
@@ -174,13 +175,13 @@ public abstract class AbstractAbrechnungControl
     return faelligkeit != null;
   }
 
-  public DateInput getStichtag()
+  public JVereinDateInput getStichtag()
   {
     if (stichtag != null)
     {
       return stichtag;
     }
-    this.stichtag = new DateInput(null, new JVDateFormatTTMMJJJJ());
+    this.stichtag = new JVereinDateInput(null, new JVDateFormatTTMMJJJJ());
     this.stichtag.setTitle("Stichtag für die Abrechnung");
     this.stichtag.setText("Bitte Stichtag für die Abrechnung wählen");
     stichtag.setMandatory(true);
@@ -322,13 +323,13 @@ public abstract class AbstractAbrechnungControl
     return rechnungstext != null;
   }
 
-  public DateInput getRechnungsdatum()
+  public JVereinDateInput getRechnungsdatum()
   {
     if (rechnungsdatum != null)
     {
       return rechnungsdatum;
     }
-    rechnungsdatum = new DateInput(new Date());
+    rechnungsdatum = new JVereinDateInput(new Date());
     rechnungsdatum.setMandatory((boolean) rechnung.getValue());
     rechnungsdatum.setEnabled((boolean) rechnung.getValue());
     rechnungsdatum.setName("Rechnungsdatum");
@@ -407,7 +408,8 @@ public abstract class AbstractAbrechnungControl
 
   public static boolean confirmDialog(String title, String text)
   {
-    YesNoDialog d = new YesNoDialog(YesNoDialog.POSITION_CENTER);
+    JVereinYesNoDialog d = new JVereinYesNoDialog(
+        JVereinYesNoDialog.POSITION_CENTER);
     d.setTitle(title);
     d.setText(text);
     try

@@ -27,6 +27,7 @@ import org.kapott.hbci.sepa.SepaVersion;
 import de.jost_net.JVerein.Einstellungen;
 import de.jost_net.JVerein.Einstellungen.Property;
 import de.jost_net.JVerein.gui.input.AbbuchungsmodusInput;
+import de.jost_net.JVerein.gui.input.JVereinDateInput;
 import de.jost_net.JVerein.io.AbrechnungSEPA;
 import de.jost_net.JVerein.io.AbrechnungSEPAParam;
 import de.jost_net.JVerein.keys.Abrechnungsmodi;
@@ -40,7 +41,6 @@ import de.jost_net.JVerein.server.Bug;
 import de.jost_net.JVerein.util.JVDateFormatTTMMJJJJ;
 import de.willuhn.datasource.rmi.DBIterator;
 import de.willuhn.jameica.gui.input.CheckboxInput;
-import de.willuhn.jameica.gui.input.DateInput;
 import de.willuhn.jameica.gui.input.SelectInput;
 import de.willuhn.jameica.gui.input.TextInput;
 import de.willuhn.util.ApplicationException;
@@ -60,11 +60,11 @@ public class AbrechnungSEPAControl extends AbstractAbrechnungControl
   // Inputs nicht in Settings gespeichert
   private SelectInput abrechnungsmonat;
 
-  private DateInput vondatum;
+  private JVereinDateInput vondatum;
 
-  private DateInput bisdatum;
+  private JVereinDateInput bisdatum;
 
-  private DateInput voneingabedatum;
+  private JVereinDateInput voneingabedatum;
 
   public AbrechnungSEPAControl() throws RemoteException
   {
@@ -186,13 +186,13 @@ public class AbrechnungSEPAControl extends AbstractAbrechnungControl
     return abrechnungsmonat != null;
   }
 
-  public DateInput getVondatum()
+  public JVereinDateInput getVondatum()
   {
     if (vondatum != null)
     {
       return vondatum;
     }
-    vondatum = new DateInput(null, new JVDateFormatTTMMJJJJ());
+    vondatum = new JVereinDateInput(null, new JVDateFormatTTMMJJJJ());
     vondatum.setTitle("Anfangsdatum Abrechnung");
     vondatum.setText("Bitte Anfangsdatum der Abrechnung wählen");
     boolean mode = (Integer) modus
@@ -219,13 +219,13 @@ public class AbrechnungSEPAControl extends AbstractAbrechnungControl
     return vondatum != null;
   }
 
-  public DateInput getVonEingabedatum()
+  public JVereinDateInput getVonEingabedatum()
   {
     if (voneingabedatum != null)
     {
       return voneingabedatum;
     }
-    voneingabedatum = new DateInput(null, new JVDateFormatTTMMJJJJ());
+    voneingabedatum = new JVereinDateInput(null, new JVDateFormatTTMMJJJJ());
     boolean mode = (Integer) modus
         .getValue() == Abrechnungsmodi.EINGETRETENEMITGLIEDER;
     if (mode)
@@ -253,13 +253,13 @@ public class AbrechnungSEPAControl extends AbstractAbrechnungControl
     return voneingabedatum != null;
   }
 
-  public DateInput getBisdatum()
+  public JVereinDateInput getBisdatum()
   {
     if (bisdatum != null)
     {
       return bisdatum;
     }
-    bisdatum = new DateInput(null, new JVDateFormatTTMMJJJJ());
+    bisdatum = new JVereinDateInput(null, new JVDateFormatTTMMJJJJ());
     bisdatum.setTitle("Enddatum Abrechnung");
     bisdatum
         .setText("Bitte maximales Austrittsdatum für die Abrechnung wählen");

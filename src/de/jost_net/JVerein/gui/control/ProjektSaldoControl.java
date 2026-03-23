@@ -47,6 +47,7 @@ public class ProjektSaldoControl extends BuchungsklasseSaldoControl
     ExtendedDBIterator<PseudoDBObject> it = super.getIterator();
 
     it.addColumn("projekt.bezeichnung as " + PROJEKT);
+    it.addColumn("projekt.id as " + PROJEKT_ID);
 
     it.addGroupBy("projekt.id");
     it.addGroupBy("projekt.bezeichnung");

@@ -115,8 +115,8 @@ public class ExtendedDBIterator<T extends AbstractDBObject>
   /**
    * Fügt eine GroupBy definition hinzu
    * 
-   * @param having
-   *          die GROUP BY spalte
+   * @param group
+   *          die GROUP BY Spalte
    * @throws RemoteException
    */
   public void addGroupBy(String group) throws RemoteException

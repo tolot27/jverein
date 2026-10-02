@@ -451,13 +451,9 @@ public class FormularAufbereitung
         sb.append(font);
         sb.append("';text-align:");
         sb.append(align);
-        sb.append(";");
-        if (feld.getFontsize() != null)
-        {
-          sb.append(";font-size:");
-          sb.append(feld.getFontsize());
-          sb.append("pt;");
-        }
+        sb.append(";font-size:");
+        sb.append(feld.getFontsize());
+        sb.append("pt;");
         sb.append("}");
 
         try

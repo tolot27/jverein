@@ -155,7 +155,7 @@ public class FormularAufbereitung
   {
     for (Fonts font : Fonts.values())
     {
-      FontFactory.register("/fonts/" + font.getName() + ".ttf", font.getName());
+      FontFactory.register(font.getResourcePath(), font.getName());
     }
   }
 
@@ -372,10 +372,10 @@ public class FormularAufbereitung
   {
     // Fontname aus Key holen, so wird die Fallback Font verwendet, falls die
     // angegebene nicht existiert
-    String font = Fonts.getByName(feld.getFont()).getName();
-    String filename = String.format("/fonts/%s.ttf", font);
-    BaseFont baseFont = BaseFont.createFont(filename, BaseFont.IDENTITY_H,
-        true);
+    Fonts font = Fonts.getByName(feld.getFont());
+    String fontName = font.getName();
+    BaseFont baseFont = BaseFont.createFont(font.getResourcePath(),
+        BaseFont.IDENTITY_H, true);
 
     float x = mm2point(feld.getX().floatValue());
     float y = mm2point(feld.getY().floatValue());
@@ -448,7 +448,7 @@ public class FormularAufbereitung
 
         StringBuilder sb = new StringBuilder();
         sb.append("*{font-family:'");
-        sb.append(font);
+        sb.append(fontName);
         sb.append("';text-align:");
         sb.append(align);
         sb.append(";font-size:");

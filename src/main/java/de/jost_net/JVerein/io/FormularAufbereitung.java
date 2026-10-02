@@ -70,6 +70,7 @@ import com.itextpdf.text.pdf.PdfReader;
 import com.itextpdf.text.pdf.PdfTemplate;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.itextpdf.tool.xml.XMLWorkerHelper;
+import com.itextpdf.tool.xml.exceptions.RuntimeWorkerException;
 
 import de.jost_net.JVerein.Einstellungen;
 import de.jost_net.JVerein.Einstellungen.Property;
@@ -363,6 +364,10 @@ public class FormularAufbereitung
 
     Object val;
     String inhalt = feld.getName();
+
+    boolean isHtml = inhalt.matches("(?si).*</(p|span|div|h[1-6]|b|i|u|s|table|"
+        + "ol|ul|strong|small|a|em|font|sub|sup|pre|code|blockquote)>.*");
+
     // (Alte) Felder mit nur einer Variable direkt aus der Map holen
     if (inhalt.matches("^\\$?[a-zA-Z0-9_]+$"))
     {
@@ -375,7 +380,7 @@ public class FormularAufbereitung
     else
     {
       // Felder mit Text und Variablen
-      val = VelocityTool.eval(map, inhalt);
+      val = VelocityTool.eval(map, inhalt, false, isHtml);
     }
 
     String stringVal = getString(val).replace("\\n", "\n").replaceAll("\r\n",
@@ -392,8 +397,7 @@ public class FormularAufbereitung
       }
       first = false;
       // HTML Parsen
-      if (stringVal.matches(
-          "(?si).*</(p|span|div|h[1-6]|b|i|u|s|table|ol|ul|strong|small|a)>.*"))
+      if (isHtml)
       {
 
         float width;
@@ -438,16 +442,26 @@ public class FormularAufbereitung
         }
         sb.append("}");
 
-        for (Element e : XMLWorkerHelper.parseToElementList(textSeite,
-            sb.toString()))
+        try
         {
-          ct.addElement(e);
+          for (Element e : XMLWorkerHelper.parseToElementList(textSeite,
+              sb.toString()))
+          {
+            ct.addElement(e);
+          }
+          if (ct.go() != ColumnText.NO_MORE_TEXT)
+          {
+            Logger.warn("Nicht aller Text passt auf die Seite");
+          }
+          contentByte.addTemplate(template, xPos, y - height);
         }
-        if (ct.go() != ColumnText.NO_MORE_TEXT)
+        catch (RuntimeWorkerException e)
         {
-          Logger.warn("Nicht aller Text passt auf die Seite");
+          String fehler = "Fehler beim Parsen des HTML-Feldes '"
+              + feld.getName().split("\n")[0] + "'.";
+          Logger.error(fehler, e);
+          throw new ApplicationException(fehler + " " + e.getMessage());
         }
-        contentByte.addTemplate(template, xPos, y - height);
       }
       else
       {

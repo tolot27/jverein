@@ -157,7 +157,8 @@ public class FormularAufbereitungTest
     doReturn(
         "<table border='1'><tr><td>Spalte</td><td><b>Fett</b></td><td><i>Kursiv</i></td></tr>"
             + "<tr><td><strong>Strong</strong></td><td><small>Klein</small></td><td><s>Durchgestrichen</s></td></tr></table>"
-            + "<ul style='list-style-type:\"-\"'><li>Aufzählung</li><li>mit mehreren</li><li>Punkten</li></ul>")
+            + "<ul style='list-style-type:\"-\"'><li>Aufzählung</li><li>mit mehreren</li><li>Punkten</li></ul>"
+            + "<p>Text mit Sonderzeichen aus Velocity $test_feld</p>")
                 .when(feld1).getName();
     doReturn(Fonts.FreeSans.getName()).when(feld1).getFont();
     doReturn(30d).when(feld1).getX();
@@ -167,7 +168,7 @@ public class FormularAufbereitungTest
 
     Formularfeld feld2 = mock(Formularfeld.class);
     doReturn(
-        "<p>Feld mit ungültiger Font,<br /> Fallback soll verwenet werden</p>")
+        "<p>Feld mit ungültiger Font,<br /> Fallback soll verwendet werden</p>")
             .when(feld2).getName();
     doReturn("font-gibt-es-nicht").when(feld2).getFont();
     doReturn(170d).when(feld2).getX();
@@ -177,7 +178,7 @@ public class FormularAufbereitungTest
 
     Formularfeld feld3 = mock(Formularfeld.class);
     doReturn("<p>Feld über mehrere Seiten.</p>"
-        + "<div style='width:60px'><p>Das ist ein langer Text, die Breite ist per CSS festgelegt.</p></div>[[newPage]]"
+        + "<div style='width:60px'><p>Das ist ein langer Text, die Breite ist per CSS festgelegt.</p></div>[[nEwPage]]"
         + "<p>Das steht auf der 2. Seite an der gleichen Position wie auf der 1. Seite.</p>")
             .when(feld3).getName();
     doReturn(Fonts.CourierPrime.getName()).when(feld3).getFont();
@@ -206,7 +207,8 @@ public class FormularAufbereitungTest
 
     FormularAufbereitung aufbereitung = new FormularAufbereitung(file, true,
         false);
-    aufbereitung.writeForm(formular, Collections.singletonMap("test", "Test"));
+    aufbereitung.writeForm(formular,
+        Collections.singletonMap("test_feld", "(&,<,>,→,…,~,€)"));
     aufbereitung.closeFormular();
 
     // Erstelltes PDF mit Soll-PDF vergleichen

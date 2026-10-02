@@ -22,7 +22,6 @@ import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.pdf.PdfWriter;
-import com.itextpdf.tool.xml.exceptions.RuntimeWorkerException;
 
 import de.jost_net.JVerein.Einstellungen;
 import de.jost_net.JVerein.Einstellungen.Property;
@@ -252,7 +251,7 @@ public class FormularAufbereitungTest
 
     FormularAufbereitung aufbereitung = new FormularAufbereitung(file, false,
         false);
-    assertThrows(RuntimeWorkerException.class, () -> aufbereitung
+    assertThrows(ApplicationException.class, () -> aufbereitung
         .writeForm(formular, Collections.singletonMap("test", "Test")));
 
     aufbereitung.closeFormular();

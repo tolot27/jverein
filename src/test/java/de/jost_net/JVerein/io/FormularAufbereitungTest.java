@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -150,8 +151,8 @@ public class FormularAufbereitungTest
 
   @Test
   @DisplayName("Html in Formular testen")
-  void formularHtmlTest()
-      throws ApplicationException, IOException, DocumentException
+  void formularHtmlTest() throws ApplicationException, IOException,
+      DocumentException, URISyntaxException
   {
     Formularfeld feld1 = mock(Formularfeld.class);
     doReturn(
@@ -212,10 +213,9 @@ public class FormularAufbereitungTest
     aufbereitung.closeFormular();
 
     // Erstelltes PDF mit Soll-PDF vergleichen
-    String soll = getClass().getClassLoader()
-        .getResource("formular-test-html.pdf").getFile();
-    assertTrue(
-        new PdfComparator<>(soll, file.getAbsolutePath()).compare().isEqual(),
+    File soll = new File(getClass().getClassLoader()
+        .getResource("formular-test-html.pdf").toURI());
+    assertTrue(new PdfComparator<>(soll, file).compare().isEqual(),
         "Das PDF das aus einem HTML-Formular generiert wurde, sieht nicht wie erwartet aus.");
 
     file.deleteOnExit();

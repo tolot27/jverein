@@ -1297,7 +1297,7 @@ public class MitgliederImport implements Importer
    * Iteriert in zwei Durchläufen über die Zeilen: zuerst alle Zeilen ohne
    * externezahlerid, danach die Zeilen mit externezahlerid.
    */
-  private static class ZeilenDurchlauf
+  static class ZeilenDurchlauf
   {
     private final ResultSet results;
 

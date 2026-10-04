@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -54,10 +55,13 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.google.zxing.qrcode.encoder.Encoder;
 import com.google.zxing.qrcode.encoder.QRCode;
 import com.ibm.icu.util.Calendar;
+import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Element;
+import com.itextpdf.text.Font;
 import com.itextpdf.text.FontFactory;
+import com.itextpdf.text.FontProvider;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.pdf.BaseFont;
 import com.itextpdf.text.pdf.ColumnText;
@@ -417,7 +421,6 @@ public class FormularAufbereitung
       // HTML Parsen
       if (isHtml)
       {
-
         float width;
         float height = y;
         String align;
@@ -566,17 +569,36 @@ public class FormularAufbereitung
 
   ElementList parseHtml(String html, String css) throws IOException
   {
+    // Eigenen FontProvider verwenden, damit die Unicode Variante der Schrift
+    // verwendet wird.
+    FontProvider fontProvider = new FontProvider()
+    {
+      @Override
+      public Font getFont(String fontname, String encoding, boolean embedded,
+          float size, int style, BaseColor color)
+      {
+        return FontFactory.getFont(fontname, BaseFont.IDENTITY_H,
+            BaseFont.EMBEDDED, size, style, color);
+      }
+
+      @Override
+      public boolean isRegistered(String fontname)
+      {
+        return FontFactory.isRegistered(fontname);
+      }
+    };
+
     // CSS
     CSSResolver cssResolver = new StyleAttrCSSResolver();
     if (css != null)
     {
-      CssFile cssFile = XMLWorkerHelper
-          .getCSS(new ByteArrayInputStream(css.getBytes()));
+      CssFile cssFile = XMLWorkerHelper.getCSS(
+          new ByteArrayInputStream(css.getBytes(StandardCharsets.UTF_8)));
       cssResolver.addCss(cssFile);
     }
 
     // HTML
-    CssAppliers cssAppliers = new CssAppliersImpl(FontFactory.getFontImp());
+    CssAppliers cssAppliers = new CssAppliersImpl(fontProvider);
     HtmlPipelineContext htmlContext = new HtmlPipelineContext(cssAppliers);
     htmlContext.autoBookmark(false);
 
@@ -592,16 +614,6 @@ public class FormularAufbereitung
       @Override
       public com.itextpdf.text.Image retrieve(String src)
       {
-        if (src == null)
-        {
-          return null;
-        }
-
-        if (src.matches("(?i)^[a-z][a-z0-9+.-]*:.*") || src.startsWith("//"))
-        {
-          throw new SecurityException("External resource blocked: " + src);
-        }
-
         return null;
       }
 
@@ -622,7 +634,8 @@ public class FormularAufbereitung
     // XML Worker
     XMLWorker worker = new XMLWorker(cssPipeline, true);
     XMLParser p = new XMLParser(worker);
-    p.parse(new ByteArrayInputStream(html.getBytes()));
+    p.parse(new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)),
+        StandardCharsets.UTF_8);
 
     return elements;
   }

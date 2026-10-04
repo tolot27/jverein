@@ -209,7 +209,7 @@ public class FormularAufbereitungTest
     FormularAufbereitung aufbereitung = new FormularAufbereitung(file, true,
         false);
     aufbereitung.writeForm(formular,
-        Collections.singletonMap("test_feld", "(&,<,>,→,…,~,€)"));
+        Collections.singletonMap("test_feld", "(&,<,>,→,…,~,€,ł)"));
     aufbereitung.closeFormular();
 
     // Erstelltes PDF mit Soll-PDF vergleichen

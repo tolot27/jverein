@@ -92,7 +92,7 @@ class XmlWorkerExternalResourceTest
       BASE href | <base href="__URL__" />
       META refresh | <meta http-equiv="refresh" content="1;url=__URL__" />
       SVG SVG | <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="__URL__" width="200" height="100" /></svg>
-      SVG use | SVG | <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="__URL__#symbol" /></svg>
+      SVG use | <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="__URL__#symbol" /></svg>
       Anchor href | <a href="__URL__">external link</a>
       Final inline background | <div style="background-image:url('__URL__')">final test</div>
       """)
@@ -105,22 +105,14 @@ class XmlWorkerExternalResourceTest
 
     hasRequest = false;
 
-    try
-    {
-      ColumnText ct = new ColumnText(null);
+    ColumnText ct = new ColumnText(null);
 
-      ElementList elemente = new FormularAufbereitung(null, false, false)
-          .parseHtml(finalHtml, "");
-      for (Element e : elemente)
-      {
-        ct.addElement(e);
-      }
-    }
-    catch (SecurityException ignore)
+    ElementList elemente = new FormularAufbereitung(null, false, false)
+        .parseHtml(finalHtml, "");
+    for (Element e : elemente)
     {
-      // Darf geworfen werden, wenn geblockt wird
+      ct.addElement(e);
     }
-
     assertFalse(hasRequest, () -> "Externe Resource geladen!");
   }
 

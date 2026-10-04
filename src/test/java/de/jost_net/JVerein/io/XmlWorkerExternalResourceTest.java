@@ -6,12 +6,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Element;
+import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.pdf.ColumnText;
+import com.itextpdf.text.pdf.PdfWriter;
 import com.itextpdf.tool.xml.ElementList;
 import com.sun.net.httpserver.HttpServer;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
@@ -64,6 +68,31 @@ class XmlWorkerExternalResourceTest
     }
   }
 
+  void renderHtml(String html) throws DocumentException, IOException
+  {
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    Document doc = new Document();
+    PdfWriter writer = PdfWriter.getInstance(doc, bos);
+    doc.open();
+    doc.newPage();
+    doc.add(new Paragraph("Formulartest"));
+
+    ColumnText ct = new ColumnText(writer.getDirectContent());
+    ct.setSimpleColumn(0, 0, doc.getPageSize().getWidth(),
+        doc.getPageSize().getHeight());
+
+    ElementList elemente = new FormularAufbereitung(null, false, false)
+        .parseHtml(html, "");
+    for (Element e : elemente)
+    {
+      ct.addElement(e);
+    }
+    ct.go();
+
+    doc.close();
+    writer.close();
+  }
+
   @ParameterizedTest(name = "{0}")
   @CsvSource(delimiter = '|', textBlock = """
       IMG src HTTP | <img src="__URL__" alt="external image" />
@@ -106,22 +135,13 @@ class XmlWorkerExternalResourceTest
 
     hasRequest = false;
 
-    ColumnText ct = new ColumnText(null);
-
     try
     {
-      ElementList elemente = new FormularAufbereitung(null, false, false)
-          .parseHtml(finalHtml, "");
-      for (Element e : elemente)
-      {
-        ct.addElement(e);
-      }
-      ct.go();
+      renderHtml(finalHtml);
     }
-    catch (SecurityException | DocumentException ignore)
+    catch (SecurityException ignore)
     {
-      // Darf geworfen werden, wenn geblockt wird oder Element nicht unterstützt
-      // ist
+      // Darf geworfen werden, wenn geblockt wird
     }
 
     assertFalse(hasRequest, () -> "Externe Resource geladen!");
@@ -157,12 +177,13 @@ class XmlWorkerExternalResourceTest
   }
 
   @Test
-  void normalesCssMustStillWork() throws Exception
+  void normalCssMustStillWork() throws Exception
   {
     String html = "<div style=\"color:red;font-size:12px;margin:10px;"
         + "padding:5px;text-align:center;font-weight:bold;"
         + "border:1px solid black;\">Normal CSS</div>";
-    new FormularAufbereitung(null, false, false).parseHtml(html, "");
+
+    renderHtml(html);
   }
 
   @Test
@@ -173,7 +194,7 @@ class XmlWorkerExternalResourceTest
     String html = "<div style=\"background-image:"
         + "url('data:image/png;base64,iVBORw0KGgo=');\">data URI</div>";
 
-    new FormularAufbereitung(null, false, false).parseHtml(html, "");
+    renderHtml(html);
 
     assertFalse(hasRequest, "data: URI must not create an HTTP request");
   }

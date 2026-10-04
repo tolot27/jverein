@@ -471,7 +471,7 @@ public class FormularAufbereitung
           }
           contentByte.addTemplate(template, xPos, y - height);
         }
-        catch (RuntimeWorkerException e)
+        catch (RuntimeWorkerException | SecurityException e)
         {
           String fehler = "Fehler beim Parsen des HTML-Feldes '"
               + feld.getName().split("\n")[0] + "'.";
@@ -614,6 +614,15 @@ public class FormularAufbereitung
       @Override
       public com.itextpdf.text.Image retrieve(String src)
       {
+        if (src == null)
+        {
+          return null;
+        }
+        if (src.matches("(?i)^[a-z][a-z0-9+.-]*:.*") || src.startsWith("//"))
+        {
+          throw new SecurityException("Externe Ressource blockiert: " + src);
+        }
+
         return null;
       }
 

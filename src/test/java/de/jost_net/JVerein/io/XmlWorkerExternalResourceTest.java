@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Element;
 import com.itextpdf.text.pdf.ColumnText;
 import com.itextpdf.tool.xml.ElementList;
@@ -107,12 +108,22 @@ class XmlWorkerExternalResourceTest
 
     ColumnText ct = new ColumnText(null);
 
-    ElementList elemente = new FormularAufbereitung(null, false, false)
-        .parseHtml(finalHtml, "");
-    for (Element e : elemente)
+    try
     {
-      ct.addElement(e);
+      ElementList elemente = new FormularAufbereitung(null, false, false)
+          .parseHtml(finalHtml, "");
+      for (Element e : elemente)
+      {
+        ct.addElement(e);
+      }
+      ct.go();
     }
+    catch (SecurityException | DocumentException ignore)
+    {
+      // Darf geworfen werden, wenn geblockt wird oder Element nicht unterstützt
+      // ist
+    }
+
     assertFalse(hasRequest, () -> "Externe Resource geladen!");
   }
 

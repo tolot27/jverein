@@ -16,6 +16,8 @@
  **********************************************************************/
 package de.jost_net.JVerein.keys;
 
+import com.itextpdf.text.FontFactory;
+
 import de.willuhn.logging.Logger;
 
 public enum Fonts
@@ -45,6 +47,14 @@ public enum Fonts
   LiberationSerifBoldItalic("LiberationSerif-BoldItalic"),
   LiberationSerifItalic("LiberationSerif-Italic"),
   LiberationSerifRegular("LiberationSerif-Regular");
+
+  static
+  {
+    for (Fonts font : Fonts.values())
+    {
+      FontFactory.register(font.getResourcePath(), font.getName());
+    }
+  }
 
   private final String name;
 

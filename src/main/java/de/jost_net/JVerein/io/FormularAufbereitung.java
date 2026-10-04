@@ -155,14 +155,6 @@ public class FormularAufbereitung
     this.encrypt = encrypt;
   }
 
-  static
-  {
-    for (Fonts font : Fonts.values())
-    {
-      FontFactory.register(font.getResourcePath(), font.getName());
-    }
-  }
-
   private void init()
       throws IOException, DocumentException, ApplicationException
   {

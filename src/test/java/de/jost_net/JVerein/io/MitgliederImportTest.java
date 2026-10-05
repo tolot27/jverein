@@ -18,6 +18,7 @@ package de.jost_net.JVerein.io;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
@@ -33,6 +34,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +89,12 @@ class MitgliederImportTest
   /** TreePart lädt im Konstruktor SWT-Images, was ohne GUI nicht geht. */
   private MockedConstruction<TreePart> treePart;
 
+  /**
+   * Simulierte DB-Tabelle: ID -> Feldwerte (Setter-Name ohne "set") zum
+   * Zeitpunkt des letzten store().
+   */
+  private Map<String, Map<String, Object>> datenbank;
+
   private ProgressMonitor monitor;
 
   /** Von oeffnen() angelegte JDBC-Ressourcen, werden in tearDown geschlossen. */
@@ -98,6 +106,7 @@ class MitgliederImportTest
     settings = Mockito.mockConstruction(Settings.class);
     treePart = Mockito.mockConstruction(TreePart.class);
     gespeichert = new ArrayList<>();
+    datenbank = new HashMap<>();
     monitor = mock(ProgressMonitor.class);
 
     Mitgliedstyp mitgliedstyp = mock(Mitgliedstyp.class);
@@ -220,8 +229,13 @@ class MitgliederImportTest
       Class<?> typ = invocation.getMethod().getReturnType();
       if (name.equals("store"))
       {
-        werte.put("ID", String.valueOf(gespeichert.size() + 1));
-        gespeichert.add((Mitglied) invocation.getMock());
+        if (!werte.containsKey("ID"))
+        {
+          werte.put("ID", String.valueOf(gespeichert.size() + 1));
+          gespeichert.add((Mitglied) invocation.getMock());
+        }
+        // Nur was bis zu diesem Zeitpunkt gesetzt wurde, landet in der DB
+        datenbank.put((String) werte.get("ID"), new HashMap<>(werte));
         return null;
       }
       if (name.equals("getMitgliedstyp"))
@@ -304,6 +318,71 @@ class MitgliederImportTest
     }
     throw new AssertionError(
         "Mitglied nicht gespeichert: " + externeMitgliedsnummer);
+  }
+
+  /** Wert eines Feldes, wie er für das Mitglied in der DB stünde. */
+  private Object persistiert(String externeMitgliedsnummer, String feld)
+      throws Exception
+  {
+    return datenbank.get(gespeichert(externeMitgliedsnummer).getID())
+        .get(feld);
+  }
+
+  private boolean nichtPersistiert(String externeMitgliedsnummer)
+  {
+    return datenbank.values().stream().noneMatch(
+        werte -> externeMitgliedsnummer.equals(werte.get("ExterneMitgliedsnummer")));
+  }
+
+  private static String beschreibung(Map<String, Object> werte)
+      throws Exception
+  {
+    return werte.get("Name") + ", " + werte.get("Vorname") + " ("
+        + werte.get("ExterneMitgliedsnummer") + ", "
+        + ((Beitragsgruppe) werte.get("Beitragsgruppe")).getBezeichnung() + ")";
+  }
+
+  /**
+   * Baut die Familienverbände aus dem simulierten DB-Stand so auf wie die GUI:
+   * Angehörige eines Vollzahlers sind alle Mitglieder mit zahlerid = ID des
+   * Vollzahlers (MitgliedControl.refreshFamilienangehoerigeTable,
+   * FamilienbeitragNode), sortiert nach Name, Vorname. Wurzel ist jeweils der
+   * Vollzahler, der selbst keinen Vollzahler haben darf.
+   */
+  private String familienverbaende() throws Exception
+  {
+    Comparator<Map<String, Object>> nachName = Comparator
+        .comparing((Map<String, Object> w) -> (String) w.get("Name"))
+        .thenComparing(w -> (String) w.get("Vorname"));
+    List<Map<String, Object>> alle = new ArrayList<>(datenbank.values());
+    alle.sort(nachName);
+
+    StringBuilder baum = new StringBuilder();
+    for (Map<String, Object> zahler : alle)
+    {
+      Long zahlerId = Long.valueOf((String) zahler.get("ID"));
+      List<Map<String, Object>> angehoerige = new ArrayList<>();
+      for (Map<String, Object> w : alle)
+      {
+        if (zahlerId.equals(w.get("VollZahlerID")))
+        {
+          angehoerige.add(w);
+        }
+      }
+      if (angehoerige.isEmpty())
+      {
+        continue;
+      }
+      assertNull(zahler.get("VollZahlerID"),
+          "Vollzahler darf nicht selbst Angehöriger sein");
+      baum.append(beschreibung(zahler)).append('\n');
+      for (int i = 0; i < angehoerige.size(); i++)
+      {
+        baum.append(i == angehoerige.size() - 1 ? "`-- " : "|-- ")
+            .append(beschreibung(angehoerige.get(i))).append('\n');
+      }
+    }
+    return baum.toString();
   }
 
   private File resource(String name) throws Exception
@@ -409,12 +488,22 @@ class MitgliederImportTest
     verify(monitor, never()).log(anyString());
     assertEquals(4, gespeichert.size());
 
+    // Geprüft wird der Stand beim store(), nicht der des Objekts danach
     assertEquals(Long.valueOf(gespeichert("1").getID()),
-        gespeichert("2").getVollZahlerID());
+        persistiert("2", "VollZahlerID"));
     assertEquals(Long.valueOf(gespeichert("3").getID()),
-        gespeichert("4").getVollZahlerID());
-    assertNull(gespeichert("1").getVollZahlerID());
-    assertNull(gespeichert("3").getVollZahlerID());
+        persistiert("4", "VollZahlerID"));
+    assertNull(persistiert("1", "VollZahlerID"));
+    assertNull(persistiert("3", "VollZahlerID"));
+
+    // Familienverbände so, wie sie die GUI aus der DB aufbauen würde
+    String baum = familienverbaende();
+    System.out.println("Familienverbände nach dem Import:\n" + baum);
+    assertEquals(String.join("\n",
+        "Meier, Hans (3, Vollzahler)",
+        "`-- Meier, Eva (4, Angehoeriger)",
+        "Mustermann, Max (1, Vollzahler)",
+        "`-- Mustermann, Anna (2, Angehoeriger)", ""), baum);
   }
 
   @Test
@@ -425,6 +514,7 @@ class MitgliederImportTest
 
     verify(monitor).log(contains(
         "Vollzahler mit externer Mitgliedsnummer nicht gefunden: 99"));
+    assertTrue(nichtPersistiert("2"));
   }
 
   @Test
@@ -434,6 +524,7 @@ class MitgliederImportTest
         "2;Mustermann;Anna;Angehoeriger;99;"));
 
     verify(monitor).log(contains("Vollzahler nicht gefunden: 99"));
+    assertTrue(nichtPersistiert("2"));
   }
 
   @Test
@@ -444,5 +535,6 @@ class MitgliederImportTest
 
     verify(monitor).log(contains(
         "zahlerid und externezahlerid dürfen nicht gleichzeitig angegeben werden"));
+    assertTrue(nichtPersistiert("2"));
   }
 }

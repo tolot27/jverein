@@ -18,7 +18,6 @@ package de.jost_net.JVerein.io;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
@@ -26,11 +25,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.io.File;
-import java.net.URISyntaxException;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -67,6 +67,12 @@ import de.willuhn.util.ProgressMonitor;
 
 class MitgliederImportTest
 {
+  /** Familien-Testdaten: Mustermann (extern) und Meier (zahlerid). */
+  private static final String FAMILIEN = "mitglieder-import.csv";
+
+  private static final String HEADER = "externemitgliedsnummer;name;vorname;beitragsgruppe;zahlerid;externezahlerid";
+
+
   /** Gespeicherte Mitglieder des Imports, in Speicherreihenfolge. */
   private List<Mitglied> gespeichert;
 
@@ -82,6 +88,9 @@ class MitgliederImportTest
   private MockedConstruction<TreePart> treePart;
 
   private ProgressMonitor monitor;
+
+  /** Von oeffnen() angelegte JDBC-Ressourcen, werden in tearDown geschlossen. */
+  private final List<AutoCloseable> offen = new ArrayList<>();
 
   @BeforeEach
   void setUp() throws Exception
@@ -120,7 +129,8 @@ class MitgliederImportTest
           return iterator(gespeichert, (m, spalte) -> {
             try
             {
-              return m.getExterneMitgliedsnummer();
+              return spalte.equals("id") ? m.getID()
+                  : m.getExterneMitgliedsnummer();
             }
             catch (Exception e)
             {
@@ -161,8 +171,13 @@ class MitgliederImportTest
   }
 
   @AfterEach
-  void tearDown()
+  void tearDown() throws Exception
   {
+    for (AutoCloseable c : offen)
+    {
+      c.close();
+    }
+    offen.clear();
     if (einstellungen != null)
     {
       einstellungen.close();
@@ -291,20 +306,31 @@ class MitgliederImportTest
         "Mitglied nicht gespeichert: " + externeMitgliedsnummer);
   }
 
-  private void importieren(String resource) throws Exception
+  private File resource(String name) throws Exception
   {
-    File file = new File(getClass().getResource("/" + resource).toURI());
-    new MitgliederImport().doImport(null, null, file, "UTF-8", monitor);
+    return new File(getClass().getResource("/" + name).toURI());
   }
 
   /**
-   * Öffnet die CSV-Resource so wie MitgliederImport.doImport und liefert pro
-   * Zeile in der Reihenfolge des ZeilenDurchlaufs "externemitgliedsnummer:Zeilennummer".
+   * Schreibt eine CSV-Datei (Header + Zeilen) in eine temporäre Datei. Kein
+   * @TempDir, weil doImport bei Fehlern die Verbindung offen lässt und Windows
+   * die Datei dann nicht löschen kann.
    */
-  private List<String> durchlaufen(String resource)
-      throws SQLException, ClassNotFoundException, URISyntaxException
+  private File csv(String... zeilen) throws IOException
   {
-    File file = new File(getClass().getResource("/" + resource).toURI());
+    File file = File.createTempFile("mitglieder-import-test", ".csv");
+    file.deleteOnExit();
+    Files.write(file.toPath(), List.of(zeilen), StandardCharsets.UTF_8);
+    return file;
+  }
+
+  private void importieren(File file) throws Exception
+  {
+    new MitgliederImport().doImport(null, null, file, "UTF-8", monitor);
+  }
+
+  private ResultSet oeffnen(File file) throws Exception
+  {
     String fil = file.getName();
     int pos = fil.lastIndexOf('.');
 
@@ -315,12 +341,22 @@ class MitgliederImportTest
     props.put("fileExtension", fil.substring(pos));
 
     Class.forName("org.relique.jdbc.csv.CsvDriver");
-    try (Connection conn = DriverManager
+    Connection conn = DriverManager
         .getConnection("jdbc:relique:csv:" + file.getParent(), props);
-        Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
-            ResultSet.CONCUR_READ_ONLY);
-        ResultSet results = stmt
-            .executeQuery("SELECT * FROM \"" + fil.substring(0, pos) + "\""))
+    offen.add(conn);
+    Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
+        ResultSet.CONCUR_READ_ONLY);
+    offen.add(stmt);
+    return stmt.executeQuery("SELECT * FROM \"" + fil.substring(0, pos) + "\"");
+  }
+
+  /**
+   * Öffnet die CSV-Datei so wie MitgliederImport.doImport und liefert pro
+   * Zeile in der Reihenfolge des ZeilenDurchlaufs "externemitgliedsnummer:Zeilennummer".
+   */
+  private List<String> durchlaufen(File file) throws Exception
+  {
+    try (ResultSet results = oeffnen(file))
     {
       ZeilenDurchlauf durchlauf = new ZeilenDurchlauf(results);
       List<String> reihenfolge = new ArrayList<>();
@@ -336,39 +372,27 @@ class MitgliederImportTest
   @Test
   void zeilenMitExternerZahlerIdKommenZuletzt() throws Exception
   {
-    // Datei: 2 (Angehöriger), 1 (Vollzahler), 3 (Angehöriger), 4 (Einzelperson)
-    assertEquals(List.of("1:2", "4:4", "2:1", "3:3"),
-        durchlaufen("mitglieder-import-familie.csv"));
+    // Datei: 2 Anna (externezahlerid), 1 Max, 3 Hans, 4 Eva (zahlerid)
+    assertEquals(List.of("1:2", "3:3", "4:4", "2:1"),
+        durchlaufen(resource(FAMILIEN)));
   }
 
   @Test
   void ohneSpalteExternezahleridBleibtReihenfolge() throws Exception
   {
     assertEquals(List.of("2:1", "1:2", "3:3"),
-        durchlaufen("mitglieder-import-ohne-externezahlerid.csv"));
+        durchlaufen(csv("externemitgliedsnummer;name", "2;Mustermann",
+            "1;Mustermann", "3;Meier")));
   }
 
   @Test
   void leereZelleZaehltAlsOhneExternezahlerid() throws Exception
   {
-    File file = new File(
-        getClass().getResource("/mitglieder-import-familie.csv").toURI());
-    Properties props = new Properties();
-    props.put("separator", ";");
-    props.put("suppressHeaders", "false");
-    props.put("charset", "UTF-8");
-    props.put("fileExtension", ".csv");
-    Class.forName("org.relique.jdbc.csv.CsvDriver");
-    try (Connection conn = DriverManager
-        .getConnection("jdbc:relique:csv:" + file.getParent(), props);
-        Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
-            ResultSet.CONCUR_READ_ONLY);
-        ResultSet results = stmt.executeQuery(
-            "SELECT * FROM \"mitglieder-import-familie\""))
+    try (ResultSet results = oeffnen(resource(FAMILIEN)))
     {
-      results.next(); // Zeile 1: Angehöriger A
+      results.next(); // Zeile 1: Anna mit externezahlerid
       assertEquals("1", ZeilenDurchlauf.getExterneZahlerId(results));
-      results.next(); // Zeile 2: Vollzahler, Zelle leer
+      results.next(); // Zeile 2: Max, Zelle leer
       assertNull(ZeilenDurchlauf.getExterneZahlerId(results));
     }
   }
@@ -376,8 +400,10 @@ class MitgliederImportTest
   @Test
   void angehoerigeWerdenMitIhremVollzahlerVerknuepft() throws Exception
   {
-    // Angehörige stehen in der Datei vor ihren Vollzahlern
-    importieren("mitglieder-import-verknuepfung.csv");
+    // Anna (externezahlerid) steht in der Datei vor ihrem Vollzahler Max.
+    // Eva verweist über zahlerid auf die DB-ID von Hans; die IDs werden in
+    // Speicherreihenfolge vergeben (Max 1, Hans 2, Eva 3, Anna 4).
+    importieren(resource(FAMILIEN));
 
     // doImport meldet Fehler nur über das Monitor-Log
     verify(monitor, never()).log(anyString());
@@ -385,27 +411,38 @@ class MitgliederImportTest
 
     assertEquals(Long.valueOf(gespeichert("1").getID()),
         gespeichert("2").getVollZahlerID());
-    assertEquals(Long.valueOf(gespeichert("4").getID()),
-        gespeichert("3").getVollZahlerID());
+    assertEquals(Long.valueOf(gespeichert("3").getID()),
+        gespeichert("4").getVollZahlerID());
     assertNull(gespeichert("1").getVollZahlerID());
-    assertNull(gespeichert("4").getVollZahlerID());
+    assertNull(gespeichert("3").getVollZahlerID());
   }
 
   @Test
-  void unbekannterVollzahlerBrichtImportAb() throws Exception
+  void unbekannteExternezahleridBrichtImportAb() throws Exception
   {
-    importieren("mitglieder-import-unbekannter-vollzahler.csv");
+    importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;;",
+        "2;Mustermann;Anna;Angehoeriger;;99"));
 
-    verify(monitor).log(contains("Vollzahler mit externer Mitgliedsnummer nicht gefunden: 99"));
-    assertTrue(gespeichert.stream().noneMatch(m -> {
-      try
-      {
-        return m.getVollZahlerID() != null;
-      }
-      catch (Exception e)
-      {
-        return false;
-      }
-    }));
+    verify(monitor).log(contains(
+        "Vollzahler mit externer Mitgliedsnummer nicht gefunden: 99"));
+  }
+
+  @Test
+  void unbekannteZahleridBrichtImportAb() throws Exception
+  {
+    importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;;",
+        "2;Mustermann;Anna;Angehoeriger;99;"));
+
+    verify(monitor).log(contains("Vollzahler nicht gefunden: 99"));
+  }
+
+  @Test
+  void zahleridUndExternezahleridGleichzeitigBrichtImportAb() throws Exception
+  {
+    importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;;",
+        "2;Mustermann;Anna;Angehoeriger;1;1"));
+
+    verify(monitor).log(contains(
+        "zahlerid und externezahlerid dürfen nicht gleichzeitig angegeben werden"));
   }
 }

@@ -437,7 +437,7 @@ class MitgliederImportTest
   {
     try (ResultSet results = oeffnen(file))
     {
-      ZeilenDurchlauf durchlauf = new ZeilenDurchlauf(results);
+      ZeilenDurchlauf durchlauf = new ZeilenDurchlauf(results, true);
       List<String> reihenfolge = new ArrayList<>();
       while (durchlauf.next())
       {
@@ -538,20 +538,181 @@ class MitgliederImportTest
     assertTrue(nichtPersistiert("2"));
   }
 
+  /** Gespeicherter Stand des Mitglieds mit diesem Vornamen. */
+  private Map<String, Object> persistiertNachVorname(String vorname)
+  {
+    return datenbank.values().stream()
+        .filter(werte -> vorname.equals(werte.get("Vorname"))).findFirst()
+        .orElseThrow(() -> new AssertionError(
+            "Mitglied nicht gespeichert: " + vorname));
+  }
+
+  /** DB-ID als Long, wie sie in vollZahlerID / abweichenderZahlerID steht. */
+  private Long dbId(String vorname)
+  {
+    return Long.valueOf((String) persistiertNachVorname(vorname).get("ID"));
+  }
+
   @Test
-  void externezahleridOhneExterneMitgliedsnummerBrichtImportAb()
-      throws Exception
+  void externezahleridWirdOhneExterneMitgliedsnummerIgnoriert() throws Exception
   {
     einstellung(Property.EXTERNEMITGLIEDSNUMMER, false);
 
     importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;;",
         "2;Mustermann;Anna;Angehoeriger;;1"));
 
+    // Keine Exception, der Import läuft, nur ein Hinweis im Log
+    verify(monitor).log(contains("externezahlerid wird ignoriert"));
+    verify(monitor, never()).log(contains("abgebrochen"));
+    assertEquals(2, datenbank.size());
+    assertNull(persistiertNachVorname("Anna").get("VollZahlerID"));
+  }
+
+  @Test
+  void zahlerMitCaretVerweisIstDieZeileDarueber() throws Exception
+  {
+    importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;;",
+        "2;Mustermann;Anna;Angehoeriger;^;", "3;Mustermann;Tom;Angehoeriger;^;",
+        "4;Meier;Hans;Vollzahler;;", "5;Meier;Eva;Angehoeriger;^;"));
+
+    verify(monitor, never()).log(anyString());
+    String baum = familienverbaende();
+    System.out.println("Familienverbände mit ^:\n" + baum);
+    assertEquals(String.join("\n",
+        "Meier, Hans (4, Vollzahler)",
+        "`-- Meier, Eva (5, Angehoeriger)",
+        "Mustermann, Max (1, Vollzahler)",
+        "|-- Mustermann, Anna (2, Angehoeriger)",
+        "`-- Mustermann, Tom (3, Angehoeriger)", ""), baum);
+  }
+
+  private static final String LFDNR_HEADER = "externemitgliedsnummer;lfdnr;name;vorname;beitragsgruppe;zahlerid;alternativer_zahlerid";
+
+  @Test
+  void zahlerMitLfdnrVerweisAuchWennErWeiterUntenSteht() throws Exception
+  {
+    // Angehöriger oben, Zahler unten, lfdnr nicht fortlaufend
+    importieren(csv(LFDNR_HEADER,
+        "2;12;Mustermann;Anna;Angehoeriger;#7;",
+        "1;7;Mustermann;Max;Vollzahler;;"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(dbId("Max"), persistiertNachVorname("Anna").get("VollZahlerID"));
+    assertNull(persistiertNachVorname("Max").get("VollZahlerID"));
+  }
+
+  @Test
+  void lfdnrWirdNumerischVerglichenUndHeaderIstCaseInsensitiv()
+      throws Exception
+  {
+    importieren(csv("externemitgliedsnummer;LfdNr;name;vorname;beitragsgruppe;zahlerid",
+        "2;2;Mustermann;Anna;Angehoeriger;#01",
+        "1;01;Mustermann;Max;Vollzahler;"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(dbId("Max"), persistiertNachVorname("Anna").get("VollZahlerID"));
+  }
+
+  @Test
+  void zahlerMitKeyVerweis() throws Exception
+  {
+    importieren(csv("externemitgliedsnummer;key;name;vorname;beitragsgruppe;zahlerid",
+        "2;;Mustermann;Anna;Angehoeriger;#mueller-1",
+        "1;mueller-1;Mustermann;Max;Vollzahler;"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(dbId("Max"), persistiertNachVorname("Anna").get("VollZahlerID"));
+  }
+
+  @Test
+  void alternativerZahlerMitVerweisUndLeerenZellen() throws Exception
+  {
+    // Tom (oben) zahlt über #5 Max (unten), Anna hat Max als Zeile darüber,
+    // Hans hat keinen abweichenden Zahler (leere Zelle)
+    importieren(csv(LFDNR_HEADER,
+        "3;;Meier;Tom;Vollzahler;;#5",
+        "1;5;Mustermann;Max;Vollzahler;;",
+        "2;;Mustermann;Anna;Vollzahler;;^",
+        "4;;Meier;Hans;Vollzahler;;"));
+
+    verify(monitor, never()).log(anyString());
+    Long max = dbId("Max");
+    assertEquals(max, persistiertNachVorname("Tom").get("AbweichenderZahlerID"));
+    assertEquals(max, persistiertNachVorname("Anna").get("AbweichenderZahlerID"));
+    assertNull(persistiertNachVorname("Max").get("AbweichenderZahlerID"));
+    assertNull(persistiertNachVorname("Hans").get("AbweichenderZahlerID"));
+    assertEquals("", familienverbaende());
+  }
+
+  @Test
+  void zahleridUndAlternativerZahleridGleichzeitigWarnt() throws Exception
+  {
+    importieren(csv(LFDNR_HEADER, "1;;Mustermann;Max;Vollzahler;;",
+        "2;;Mustermann;Anna;Angehoeriger;^;^"));
+
     verify(monitor).log(contains(
-        "externezahlerid ist nur mit externer Mitgliedsnummer möglich"));
-    // Nur Max (erster Durchlauf) wurde gespeichert, Anna nicht
+        "Zeile 2: Warnung: zahlerid und alternativer_zahlerid sind beide angegeben"));
+    verify(monitor, never()).log(contains("abgebrochen"));
+    Long max = dbId("Max");
+    assertEquals(max, persistiertNachVorname("Anna").get("VollZahlerID"));
+    assertEquals(max, persistiertNachVorname("Anna").get("AbweichenderZahlerID"));
+  }
+
+  @Test
+  void zeilennummerBleibtDiePositionInDerCsv() throws Exception
+  {
+    // Zeile 1 wird erst nach Zeile 2 (Max) verarbeitet, der Fehler muss
+    // trotzdem "Zeile 1" melden
+    importieren(csv("externemitgliedsnummer;lfdnr;name;vorname;beitragsgruppe;zahlerid;externezahlerid",
+        "2;12;Mustermann;Anna;Angehoeriger;#7;9",
+        "1;7;Mustermann;Max;Vollzahler;;"));
+
+    verify(monitor).log(contains("Zeile 1: zahlerid und externezahlerid"));
     assertEquals(1, datenbank.size());
   }
+
+  @Test
+  void ungueltigeVerweiseBrechenVorDemImportAb() throws Exception
+  {
+    importieren(csv("externemitgliedsnummer;lfdnr;name;vorname;beitragsgruppe;zahlerid",
+        "1;abc;Mustermann;Max;Vollzahler;"));
+    verify(monitor).log(contains("Zeile 1: lfdnr muss eine ganze Zahl sein: abc"));
+
+    importieren(csv("externemitgliedsnummer;lfdnr;name;vorname;beitragsgruppe;zahlerid",
+        "1;7;Mustermann;Max;Vollzahler;", "2;7;Mustermann;Anna;Angehoeriger;#7"));
+    verify(monitor).log(
+        contains("Zeile 2: lfdnr 7 ist bereits in Zeile 1 vergeben"));
+
+    importieren(csv("externemitgliedsnummer;lfdnr;name;vorname;beitragsgruppe;zahlerid",
+        "1;7;Mustermann;Max;Vollzahler;", "2;8;Mustermann;Anna;Angehoeriger;#99"));
+    verify(monitor).log(contains("Zeile 2: Verweis #99 in zahlerid"));
+
+    importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;;",
+        "2;Mustermann;Anna;Angehoeriger;#7;"));
+    verify(monitor).log(contains("keine Spalte lfdnr oder key"));
+
+    importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;^;"));
+    verify(monitor).log(contains("Zeile 1: Kein Zahler oberhalb für ^"));
+
+    importieren(csv("externemitgliedsnummer;lfdnr;key;name;vorname;beitragsgruppe",
+        "1;1;a;Mustermann;Max;Vollzahler"));
+    verify(monitor).log(contains("lfdnr und key dürfen nicht gleichzeitig"));
+
+    // Nichts davon darf etwas gespeichert haben
+    assertTrue(datenbank.isEmpty());
+  }
+
+  @Test
+  void zyklischeVerweiseBrechenAb() throws Exception
+  {
+    importieren(csv(LFDNR_HEADER,
+        "1;1;Mustermann;Max;Angehoeriger;#2;",
+        "2;2;Mustermann;Anna;Angehoeriger;#1;"));
+
+    verify(monitor).log(contains("Zahler-Verweise sind zyklisch"));
+    assertTrue(datenbank.isEmpty());
+  }
+
 
   @Test
   void zahleridFunktioniertOhneExterneMitgliedsnummer() throws Exception

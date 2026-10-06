@@ -69,8 +69,11 @@ import de.willuhn.util.ProgressMonitor;
 
 class MitgliederImportTest
 {
-  /** Familien-Testdaten: Mustermann (extern) und Meier (zahlerid). */
-  private static final String FAMILIEN = "mitglieder-import.csv";
+  /** Familien-Testdaten: Mustermann (externezahlerid) und Meier (zahlerid). */
+  private static final String FAMILIEN = "mitglieder-import-externenummer.csv";
+
+  /** Dieselben Personen mit Verweisen innerhalb der Datei (#lfdnr, ^). */
+  private static final String VERWEISE = "mitglieder-import-verweise.csv";
 
   private static final String HEADER = "externemitgliedsnummer;name;vorname;beitragsgruppe;zahlerid;externezahlerid";
 
@@ -566,6 +569,31 @@ class MitgliederImportTest
     verify(monitor, never()).log(contains("abgebrochen"));
     assertEquals(2, datenbank.size());
     assertNull(persistiertNachVorname("Anna").get("VollZahlerID"));
+  }
+
+  @Test
+  void beispieldateiMitVerweisenErgibtDieErwartetenFamilien() throws Exception
+  {
+    // Eva (Zeile 1) verweist per #2 auf Hans weiter unten, Anna und Tom stehen
+    // per ^ direkt unter Max, Willi hat Max als abweichenden Zahler (#1).
+    importieren(resource(VERWEISE));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(6, datenbank.size());
+    String baum = familienverbaende();
+    System.out.println("Familienverbände aus " + VERWEISE + ":\n" + baum);
+    assertEquals(String.join("\n",
+        "Meier, Hans (4, Vollzahler)",
+        "`-- Meier, Eva (5, Angehoeriger)",
+        "Mustermann, Max (1, Vollzahler)",
+        "|-- Mustermann, Anna (2, Angehoeriger)",
+        "`-- Mustermann, Tom (3, Angehoeriger)", ""), baum);
+
+    // Abweichender Zahler begründet keinen Familienverband
+    assertEquals(dbId("Max"),
+        persistiertNachVorname("Willi").get("AbweichenderZahlerID"));
+    assertNull(persistiertNachVorname("Max").get("AbweichenderZahlerID"));
+    assertNull(persistiertNachVorname("Hans").get("AbweichenderZahlerID"));
   }
 
   @Test

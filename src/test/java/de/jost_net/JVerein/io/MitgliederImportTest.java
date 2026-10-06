@@ -537,4 +537,74 @@ class MitgliederImportTest
         "zahlerid und externezahlerid dürfen nicht gleichzeitig angegeben werden"));
     assertTrue(nichtPersistiert("2"));
   }
+
+  @Test
+  void externezahleridOhneExterneMitgliedsnummerBrichtImportAb()
+      throws Exception
+  {
+    einstellung(Property.EXTERNEMITGLIEDSNUMMER, false);
+
+    importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;;",
+        "2;Mustermann;Anna;Angehoeriger;;1"));
+
+    verify(monitor).log(contains(
+        "externezahlerid ist nur mit externer Mitgliedsnummer möglich"));
+    // Nur Max (erster Durchlauf) wurde gespeichert, Anna nicht
+    assertEquals(1, datenbank.size());
+  }
+
+  @Test
+  void zahleridFunktioniertOhneExterneMitgliedsnummer() throws Exception
+  {
+    einstellung(Property.EXTERNEMITGLIEDSNUMMER, false);
+
+    importieren(csv("name;vorname;beitragsgruppe;zahlerid",
+        "Mustermann;Max;Vollzahler;", "Mustermann;Anna;Angehoeriger;1"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(2, datenbank.size());
+    Map<String, Object> max = datenbank.get("1");
+    Map<String, Object> anna = datenbank.get("2");
+    assertEquals("Max", max.get("Vorname"));
+    assertEquals("Anna", anna.get("Vorname"));
+    assertNull(max.get("VollZahlerID"));
+    assertEquals(Long.valueOf(1), anna.get("VollZahlerID"));
+  }
+
+  /** Legt ein bereits vorhandenes Mitglied (ID 1) in der Fake-DB an. */
+  private void vorhandenerZahler() throws Exception
+  {
+    Mitglied zahler = (Mitglied) Einstellungen.getDBService()
+        .createObject(Mitglied.class, null);
+    zahler.setName("Zahler");
+    zahler.setVorname("Paul");
+    zahler.setExterneMitgliedsnummer("9");
+    zahler.store();
+  }
+
+  @Test
+  void alternativerZahlerIdWirdGesetztOhneFamilienverband() throws Exception
+  {
+    vorhandenerZahler();
+
+    importieren(csv("externemitgliedsnummer;name;vorname;beitragsgruppe;alternativer_zahlerid",
+        "1;Mustermann;Max;Vollzahler;1"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(Long.valueOf(1), persistiert("1", "AbweichenderZahlerID"));
+    assertNull(persistiert("1", "VollZahlerID"));
+    // Ein abweichender Zahler begründet keinen Familienverband
+    assertEquals("", familienverbaende());
+  }
+
+  @Test
+  void unbekannterAlternativerZahlerBrichtImportAb() throws Exception
+  {
+    importieren(csv("externemitgliedsnummer;name;vorname;beitragsgruppe;alternativer_zahlerid",
+        "1;Mustermann;Max;Vollzahler;99"));
+
+    verify(monitor)
+        .log(contains("Alternativen Zahler nicht gefunden: 99"));
+    assertTrue(nichtPersistiert("1"));
+  }
 }

@@ -340,8 +340,9 @@ class MitgliederImportTest
   private static String beschreibung(Map<String, Object> werte)
       throws Exception
   {
+    Object nummer = werte.get("ExterneMitgliedsnummer");
     return werte.get("Name") + ", " + werte.get("Vorname") + " ("
-        + werte.get("ExterneMitgliedsnummer") + ", "
+        + (nummer == null ? "" : nummer + ", ")
         + ((Beitragsgruppe) werte.get("Beitragsgruppe")).getBezeichnung() + ")";
   }
 
@@ -576,6 +577,8 @@ class MitgliederImportTest
   {
     // Eva (Zeile 1) verweist per #2 auf Hans weiter unten, Anna und Tom stehen
     // per ^ direkt unter Max, Willi hat Max als abweichenden Zahler (#1).
+    // Ohne externe Mitgliedsnummer: die Datei hat keine Spalte dafür
+    einstellung(Property.EXTERNEMITGLIEDSNUMMER, false);
     importieren(resource(VERWEISE));
 
     verify(monitor, never()).log(anyString());
@@ -583,11 +586,11 @@ class MitgliederImportTest
     String baum = familienverbaende();
     System.out.println("Familienverbände aus " + VERWEISE + ":\n" + baum);
     assertEquals(String.join("\n",
-        "Meier, Hans (4, Vollzahler)",
-        "`-- Meier, Eva (5, Angehoeriger)",
-        "Mustermann, Max (1, Vollzahler)",
-        "|-- Mustermann, Anna (2, Angehoeriger)",
-        "`-- Mustermann, Tom (3, Angehoeriger)", ""), baum);
+        "Meier, Hans (Vollzahler)",
+        "`-- Meier, Eva (Angehoeriger)",
+        "Mustermann, Max (Vollzahler)",
+        "|-- Mustermann, Anna (Angehoeriger)",
+        "`-- Mustermann, Tom (Angehoeriger)", ""), baum);
 
     // Abweichender Zahler begründet keinen Familienverband
     assertEquals(dbId("Max"),

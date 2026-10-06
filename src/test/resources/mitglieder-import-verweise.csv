@@ -1,7 +1,7 @@
-externemitgliedsnummer;lfdnr;name;vorname;beitragsgruppe;zahlerid;alternativer_zahlerid
-5;;Meier;Eva;Angehoeriger;#2;
-1;1;Mustermann;Max;Vollzahler;;
-2;;Mustermann;Anna;Angehoeriger;^;
-3;;Mustermann;Tom;Angehoeriger;^;
-4;2;Meier;Hans;Vollzahler;;
-6;;Wichtig;Willi;Vollzahler;;#1
+lfdnr;name;vorname;beitragsgruppe;zahlerid;alternativer_zahlerid
+;Meier;Eva;Angehoeriger;#2;
+1;Mustermann;Max;Vollzahler;;
+;Mustermann;Anna;Angehoeriger;^;
+;Mustermann;Tom;Angehoeriger;^;
+2;Meier;Hans;Vollzahler;;
+;Wichtig;Willi;Vollzahler;;#1

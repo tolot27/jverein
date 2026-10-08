@@ -744,6 +744,78 @@ class MitgliederImportTest
     assertTrue(datenbank.isEmpty());
   }
 
+  @Test
+  void zeileOhneEigenenZahlerBeendetDenFamilienverband() throws Exception
+  {
+    // Karl gibt keinen Zahler an, ein ^ darunter gehört deshalb zu Karl und
+    // nicht mehr zu Max
+    importieren(csv("externemitgliedsnummer;name;vorname;beitragsgruppe;zahlerid",
+        "1;Mustermann;Max;Vollzahler;", "2;Mustermann;Anna;Angehoeriger;^",
+        "3;Meier;Karl;Vollzahler;", "4;Meier;Tom;Angehoeriger;^",
+        "5;Wichtig;Hans;Vollzahler;", "6;Wichtig;Eva;Angehoeriger;^"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(dbId("Max"), persistiertNachVorname("Anna").get("VollZahlerID"));
+    assertEquals(dbId("Karl"), persistiertNachVorname("Tom").get("VollZahlerID"));
+    assertEquals(dbId("Hans"), persistiertNachVorname("Eva").get("VollZahlerID"));
+  }
+
+  @Test
+  void andereVerweiseZwischenZweiFamilienStoerenCaretNicht() throws Exception
+  {
+    // Zwischen Max und Hans stehen Zeilen mit #lfdnr, externezahlerid,
+    // Datenbank-ID und alternativer_zahlerid. Sie sind keine Zahler und ändern
+    // nicht, worauf ein ^ weiter unten verweist.
+    vorhandenerZahler();
+
+    importieren(csv("externemitgliedsnummer;lfdnr;name;vorname;beitragsgruppe;zahlerid;externezahlerid;alternativer_zahlerid",
+        "1;;Mustermann;Max;Vollzahler;;;",
+        "2;;Mustermann;Anna;Angehoeriger;^;;",
+        "3;;Meier;Tom;Angehoeriger;#9;;",
+        "4;;Mustermann;Lisa;Angehoeriger;;1;#9",
+        "5;;Mustermann;Uwe;Angehoeriger;1;;",
+        "6;;Mustermann;Ben;Angehoeriger;^;;",
+        "7;9;Meier;Hans;Vollzahler;;;",
+        "8;;Meier;Eva;Angehoeriger;^;;"));
+
+    verify(monitor, never()).log(anyString());
+    Long max = dbId("Max");
+    Long hans = dbId("Hans");
+    assertEquals(max, persistiertNachVorname("Anna").get("VollZahlerID"));
+    assertEquals(hans, persistiertNachVorname("Tom").get("VollZahlerID"));
+    assertEquals(max, persistiertNachVorname("Lisa").get("VollZahlerID"));
+    assertEquals(Long.valueOf(1), persistiertNachVorname("Uwe").get("VollZahlerID"));
+    assertEquals(max, persistiertNachVorname("Ben").get("VollZahlerID"));
+    assertEquals(hans, persistiertNachVorname("Lisa").get("AbweichenderZahlerID"));
+    assertEquals(hans, persistiertNachVorname("Eva").get("VollZahlerID"));
+  }
+
+  @Test
+  void caretFunktioniertAuchInExternezahlerid() throws Exception
+  {
+    importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;;",
+        "2;Mustermann;Anna;Angehoeriger;;^", "3;Mustermann;Tom;Angehoeriger;;^",
+        "4;Meier;Hans;Vollzahler;;", "5;Meier;Eva;Angehoeriger;;^"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(String.join("\n",
+        "Meier, Hans (4, Vollzahler)",
+        "`-- Meier, Eva (5, Angehoeriger)",
+        "Mustermann, Max (1, Vollzahler)",
+        "|-- Mustermann, Anna (2, Angehoeriger)",
+        "`-- Mustermann, Tom (3, Angehoeriger)", ""), familienverbaende());
+  }
+
+  @Test
+  void caretInExternezahleridUndZahleridGleichzeitigBrichtAb() throws Exception
+  {
+    importieren(csv(HEADER, "1;Mustermann;Max;Vollzahler;;",
+        "2;Mustermann;Anna;Angehoeriger;1;^"));
+
+    verify(monitor).log(contains(
+        "Zeile 2: zahlerid und externezahlerid dürfen nicht gleichzeitig angegeben werden"));
+  }
+
 
   @Test
   void zahleridFunktioniertOhneExterneMitgliedsnummer() throws Exception

@@ -400,19 +400,27 @@ public class MitgliederImport implements Importer
               throw new ApplicationException("Zeile " + anz
                   + ": zahlerid und externezahlerid dürfen nicht gleichzeitig angegeben werden");
             }
-            DBIterator<Mitglied> it = Einstellungen.getDBService()
-                .createList(Mitglied.class);
-            it.addFilter("externemitgliedsnummer = ?", externeZahlerId);
-            if (!it.hasNext())
-              throw new ApplicationException("Zeile " + anz
-                  + ": Vollzahler mit externer Mitgliedsnummer nicht gefunden: "
-                  + externeZahlerId);
-            Mitglied vollzahler = it.next();
-            if (it.hasNext())
-              throw new ApplicationException("Zeile " + anz
-                  + ": Externe Mitgliedsnummer des Vollzahlers ist mehrfach vorhanden: "
-                  + externeZahlerId);
-            m.setVollZahlerID(Long.parseLong(vollzahler.getID()));
+            if (zahlerZeile != null)
+            {
+              // externezahlerid ^: Zahler ist die Zeile darüber
+              m.setVollZahlerID(verweisAufloesen(zeilenZuId, zahlerZeile, anz));
+            }
+            else
+            {
+              DBIterator<Mitglied> it = Einstellungen.getDBService()
+                  .createList(Mitglied.class);
+              it.addFilter("externemitgliedsnummer = ?", externeZahlerId);
+              if (!it.hasNext())
+                throw new ApplicationException("Zeile " + anz
+                    + ": Vollzahler mit externer Mitgliedsnummer nicht gefunden: "
+                    + externeZahlerId);
+              Mitglied vollzahler = it.next();
+              if (it.hasNext())
+                throw new ApplicationException("Zeile " + anz
+                    + ": Externe Mitgliedsnummer des Vollzahlers ist mehrfach vorhanden: "
+                    + externeZahlerId);
+              m.setVollZahlerID(Long.parseLong(vollzahler.getID()));
+            }
           }
           else if (zahlerZeile != null)
           {
@@ -1455,6 +1463,7 @@ public class MitgliederImport implements Importer
       List<Integer> zeilen = new ArrayList<>();
       Map<Integer, String> zahlerZellen = new HashMap<>();
       Map<Integer, String> alternativeZellen = new HashMap<>();
+      Map<Integer, String> externeZellen = new HashMap<>();
       Map<String, Integer> schluesselZuZeile = new HashMap<>();
       Set<Integer> spaet = new HashSet<>();
       results.beforeFirst();
@@ -1464,8 +1473,10 @@ public class MitgliederImport implements Importer
         zeilen.add(zeile);
         zahlerZellen.put(zeile, zelle(results, "zahlerid"));
         alternativeZellen.put(zeile, zelle(results, "alternativer_zahlerid"));
-        if (externeZahlerId() != null)
+        String externe = externeZahlerId();
+        if (externe != null)
         {
+          externeZellen.put(zeile, externe);
           spaet.add(zeile);
         }
         String schluessel = schluesselSpalte == null ? null
@@ -1494,9 +1505,16 @@ public class MitgliederImport implements Importer
       for (int zeile : zeilen)
       {
         String zahler = zahlerZellen.get(zeile);
+        String externe = externeZellen.get(zeile);
         String alternative = alternativeZellen.get(zeile);
         Integer zahlerZeile = verweis(zeile, "zahlerid", zahler,
             letzteOhneZahler, lfdnr, schluesselSpalte, schluesselZuZeile);
+        if (zahlerZeile == null && "^".equals(externe))
+        {
+          // ^ gilt auch in externezahlerid: Zahler ist die Zeile darüber
+          zahlerZeile = verweis(zeile, "externezahlerid", externe,
+              letzteOhneZahler, lfdnr, schluesselSpalte, schluesselZuZeile);
+        }
         Integer alternativeZeile = verweis(zeile, "alternativer_zahlerid",
             alternative, letzteOhneAlternative, lfdnr, schluesselSpalte,
             schluesselZuZeile);
@@ -1513,7 +1531,7 @@ public class MitgliederImport implements Importer
         }
         abhaengigVon.put(zeile, ziele);
         // Zeilen mit eigener Angabe oder externezahlerid sind keine Zahler
-        if (zahler == null && !spaet.contains(zeile))
+        if (zahler == null && externe == null)
         {
           letzteOhneZahler = zeile;
         }

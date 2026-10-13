@@ -1,7 +1,7 @@
-lfdnr;name;vorname;beitragsgruppe;zahlerid;alternativer_zahlerid
-;Meier;Eva;Angehoeriger;#2;
-1;Mustermann;Max;Vollzahler;;
-;Mustermann;Anna;Angehoeriger;^;
-;Mustermann;Tom;Angehoeriger;^;
-2;Meier;Hans;Vollzahler;;
-;Wichtig;Willi;Vollzahler;;#1
+name;vorname;beitragsgruppe;zahlerid;alternativer_zahlerid
+Mustermann;Max;Vollzahler;;
+Mustermann;Anna;Angehoeriger;^;
+Mustermann;Tom;Angehoeriger;^;
+Meier;Hans;Vollzahler;;
+Meier;Eva;Angehoeriger;^;
+Wichtig;Willi;Vollzahler;;1

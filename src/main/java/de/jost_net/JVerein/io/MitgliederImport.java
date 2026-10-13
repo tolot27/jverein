@@ -178,6 +178,7 @@ public class MitgliederImport implements Importer
       // CSV-Zeile -> ID des daraus gespeicherten Mitglieds
       Map<Integer, Long> zeilenZuId = new HashMap<>();
       int verarbeitet = 0;
+      boolean abweichendeZahlerGemeldet = false;
       while (durchlauf.next())
       {
         anz = results.getRow();
@@ -379,10 +380,16 @@ public class MitgliederImport implements Importer
         String zahlerId = durchlauf.zelle(results, "zahlerid");
         String alternativerZahler = durchlauf.zelle(results,
             "alternativer_zahlerid");
-        if (zahlerId != null && alternativerZahler != null)
+        // zahlerid und alternativer_zahlerid sind unabhängig voneinander. Sind
+        // abweichende Zahler ausgeschaltet, wird alternativer_zahlerid zwar
+        // gespeichert, bei Zahlungen aber nicht berücksichtigt (einmal melden).
+        if (alternativerZahler != null && !abweichendeZahlerGemeldet
+            && !(Boolean) Einstellungen
+                .getEinstellung(Property.ABWEICHENDEZAHLER))
         {
+          abweichendeZahlerGemeldet = true;
           monitor.log("Zeile " + anz
-              + ": Warnung: zahlerid und alternativer_zahlerid sind beide angegeben.");
+              + ": Warnung: Abweichende Zahler sind in den Einstellungen nicht aktiviert, alternativer_zahlerid wird trotzdem importiert.");
         }
 
         // Vollzahler nur bei Mitgliedern und Beitragsgruppe

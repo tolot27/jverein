@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.File;
@@ -180,6 +181,7 @@ class MitgliederImportTest
     einstellung(Property.BEITRAGSMODEL,
         Beitragsmodel.GLEICHERTERMINFUERALLE.getKey());
     einstellung(Property.SEPAMANDATIDSOURCE, SepaMandatIdSource.DBID);
+    einstellung(Property.ABWEICHENDEZAHLER, true);
   }
 
   @AfterEach
@@ -676,17 +678,50 @@ class MitgliederImportTest
   }
 
   @Test
-  void zahleridUndAlternativerZahleridGleichzeitigWarnt() throws Exception
+  void zahleridUndAlternativerZahleridGleichzeitigIstOhneWarnungErlaubt()
+      throws Exception
   {
     importieren(csv(LFDNR_HEADER, "1;;Mustermann;Max;Vollzahler;;",
         "2;;Mustermann;Anna;Angehoeriger;^;^"));
 
+    verify(monitor, never()).log(anyString());
+    Long max = dbId("Max");
+    assertEquals(max, persistiertNachVorname("Anna").get("VollZahlerID"));
+    assertEquals(max, persistiertNachVorname("Anna").get("AbweichenderZahlerID"));
+  }
+
+  @Test
+  void alternativerZahleridOhneAktiveAbweichendeZahlerWarntEinmalUndImportiertTrotzdem()
+      throws Exception
+  {
+    einstellung(Property.ABWEICHENDEZAHLER, false);
+
+    // Unabhängig von zahlerid: Anna hat beides, Tom nur alternativer_zahlerid
+    importieren(csv(LFDNR_HEADER, "1;;Mustermann;Max;Vollzahler;;",
+        "2;;Mustermann;Anna;Angehoeriger;^;^",
+        "3;;Meier;Tom;Vollzahler;;^"));
+
     verify(monitor).log(contains(
-        "Zeile 2: Warnung: zahlerid und alternativer_zahlerid sind beide angegeben"));
+        "Zeile 2: Warnung: Abweichende Zahler sind in den Einstellungen nicht aktiviert"));
+    // Die Meldung kommt nur einmal, nicht für jede Zeile
+    verify(monitor, times(1)).log(contains("Warnung"));
     verify(monitor, never()).log(contains("abgebrochen"));
     Long max = dbId("Max");
     assertEquals(max, persistiertNachVorname("Anna").get("VollZahlerID"));
     assertEquals(max, persistiertNachVorname("Anna").get("AbweichenderZahlerID"));
+    assertEquals(max, persistiertNachVorname("Tom").get("AbweichenderZahlerID"));
+  }
+
+  @Test
+  void alternativerZahleridMitAktivenAbweichendenZahlernHatKeineWarnung()
+      throws Exception
+  {
+    importieren(csv(LFDNR_HEADER, "1;;Mustermann;Max;Vollzahler;;",
+        "2;;Meier;Tom;Vollzahler;;^"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(dbId("Max"),
+        persistiertNachVorname("Tom").get("AbweichenderZahlerID"));
   }
 
   @Test

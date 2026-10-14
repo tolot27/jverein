@@ -13,11 +13,13 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import javax.mail.internet.AddressException;
 
@@ -161,8 +163,7 @@ public class MitgliederImport implements Importer
       // Mitgliedsnummer einer Zeile der Datei), unabhängig von der Reihenfolge.
       boolean externeMitgliedsnummer = (Boolean) Einstellungen
           .getEinstellung(Property.EXTERNEMITGLIEDSNUMMER);
-      ZeilenDurchlauf durchlauf = new ZeilenDurchlauf(results,
-          externeMitgliedsnummer);
+      ZeilenDurchlauf durchlauf = new ZeilenDurchlauf(results);
 
       DBTransaction.starten();
       transaktionGestartet = true;
@@ -369,20 +370,36 @@ public class MitgliederImport implements Importer
           }
         }
 
-        // Zahler-Zellen: null, wenn Spalte fehlt oder Zelle leer
+        // Zahler-Zellen: null, wenn Spalte fehlt oder Zelle leer. Je Rolle
+        // (Vollzahler, abweichender Zahler) gibt es eine Spalte für die
+        // Datenbank-ID und eine für die externe Mitgliedsnummer.
         String zahlerId = durchlauf.zelle(results, "zahlerid");
+        String externeZahlerId = durchlauf.zelle(results, "externezahlerid");
         String alternativerZahler = durchlauf.zelle(results,
             "alternativer_zahlerid");
+        String externerAlternativerZahler = durchlauf.zelle(results,
+            "externealternativer_zahlerid");
+        if (zahlerId != null && externeZahlerId != null)
+        {
+          throw new ApplicationException("Zeile " + anz
+              + ": zahlerid und externezahlerid dürfen nicht gleichzeitig angegeben werden");
+        }
+        if (alternativerZahler != null && externerAlternativerZahler != null)
+        {
+          throw new ApplicationException("Zeile " + anz
+              + ": alternativer_zahlerid und externealternativer_zahlerid dürfen nicht gleichzeitig angegeben werden");
+        }
         // zahlerid und alternativer_zahlerid sind unabhängig voneinander. Sind
-        // abweichende Zahler ausgeschaltet, wird alternativer_zahlerid zwar
+        // abweichende Zahler ausgeschaltet, wird der alternative Zahler zwar
         // gespeichert, bei Zahlungen aber nicht berücksichtigt (einmal melden).
-        if (alternativerZahler != null && !abweichendeZahlerGemeldet
+        if ((alternativerZahler != null || externerAlternativerZahler != null)
+            && !abweichendeZahlerGemeldet
             && !(Boolean) Einstellungen
                 .getEinstellung(Property.ABWEICHENDEZAHLER))
         {
           abweichendeZahlerGemeldet = true;
           monitor.log("Zeile " + anz
-              + ": Warnung: Abweichende Zahler sind in den Einstellungen nicht aktiviert, alternativer_zahlerid wird trotzdem importiert.");
+              + ": Warnung: Abweichende Zahler sind in den Einstellungen nicht aktiviert, der alternative Zahler wird trotzdem importiert.");
         }
 
         // Vollzahler nur bei Mitgliedern und Beitragsgruppe
@@ -391,31 +408,23 @@ public class MitgliederImport implements Importer
             && m.getBeitragsgruppe()
                 .getBeitragsArt() == ArtBeitragsart.FAMILIE_ANGEHOERIGER)
         {
-          Integer zahlerZeile = durchlauf.getZahlerZeile(anz);
-          if (zahlerZeile != null)
+          Long vollzahler = zahlerErmitteln(zeilenZuId,
+              durchlauf.getZahlerZeile(anz), zahlerId, externeZahlerId,
+              externeMitgliedsnummer, "Vollzahler", anz);
+          if (vollzahler != null)
           {
-            // ^ oder externe Mitgliedsnummer eines Mitglieds dieser Datei
-            m.setVollZahlerID(verweisAufloesen(zeilenZuId, zahlerZeile, anz));
-          }
-          else if (zahlerId != null)
-          {
-            m.setVollZahlerID(zahlerSuchen(zahlerId, externeMitgliedsnummer,
-                "Vollzahler", anz));
+            m.setVollZahlerID(vollzahler);
           }
         }
 
-        // Leere Zelle: kein abweichender Zahler für dieses Mitglied
-        Integer alternativerZahlerZeile = durchlauf
-            .getAlternativerZahlerZeile(anz);
-        if (alternativerZahlerZeile != null)
+        // Leere Zellen: kein abweichender Zahler für dieses Mitglied
+        Long alternativ = zahlerErmitteln(zeilenZuId,
+            durchlauf.getAlternativerZahlerZeile(anz), alternativerZahler,
+            externerAlternativerZahler, externeMitgliedsnummer,
+            "Alternativer Zahler", anz);
+        if (alternativ != null)
         {
-          m.setAbweichenderZahlerID(
-              verweisAufloesen(zeilenZuId, alternativerZahlerZeile, anz));
-        }
-        else if (alternativerZahler != null)
-        {
-          m.setAbweichenderZahlerID(zahlerSuchen(alternativerZahler,
-              externeMitgliedsnummer, "Alternativer Zahler", anz));
+          m.setAbweichenderZahlerID(alternativ);
         }
 
         try
@@ -1298,60 +1307,82 @@ public class MitgliederImport implements Importer
   }
 
   /**
-   * Sucht einen Zahler in der Datenbank. Der Wert ist eine Datenbank-ID (mit
-   * oder ohne # davor) oder, bei aktiver externer Mitgliedsnummer, eine
-   * externe Mitgliedsnummer.
+   * Ermittelt die Datenbank-ID eines Zahlers.
    *
-   * @param wert
-   *          Inhalt der Zelle zahlerid bzw. alternativer_zahlerid
+   * @param zielzeile
+   *          Zeile der Datei, auf die ^ oder eine externe Mitgliedsnummer der
+   *          Datei verweist, sonst null
+   * @param datenbankId
+   *          Inhalt der Spalte mit der Datenbank-ID (zahlerid bzw.
+   *          alternativer_zahlerid) oder null
+   * @param externeNummer
+   *          Inhalt der Spalte mit der externen Mitgliedsnummer oder null
    * @param externeMitgliedsnummer
-   *          Einstellung "Externe Mitgliedsnummer"
+   *          Einstellung "Externe Mitgliedsnummer". Ist sie aus, wird eine
+   *          externe Nummer nur in der Datei gesucht.
    * @param bezeichnung
    *          Für Fehlermeldungen
    * @param zeile
    *          CSV-Zeile
-   * @return Datenbank-ID des Zahlers
+   * @return Datenbank-ID des Zahlers, null wenn keine Angabe gemacht wurde
    */
-  private static Long zahlerSuchen(String wert, boolean externeMitgliedsnummer,
-      String bezeichnung, int zeile) throws RemoteException, ApplicationException
+  private static Long zahlerErmitteln(Map<Integer, Long> zeilenZuId,
+      Integer zielzeile, String datenbankId, String externeNummer,
+      boolean externeMitgliedsnummer, String bezeichnung, int zeile)
+      throws RemoteException, ApplicationException
   {
-    DBIterator<Mitglied> it = Einstellungen.getDBService()
-        .createList(Mitglied.class);
-    if (wert.startsWith("#") || !externeMitgliedsnummer)
+    if (zielzeile != null)
     {
-      String id = wert.startsWith("#") ? wert.substring(1).trim() : wert;
+      return verweisAufloesen(zeilenZuId, zielzeile, zeile);
+    }
+    if (datenbankId != null)
+    {
       try
       {
-        Long.parseLong(id);
+        Long.parseLong(datenbankId);
       }
       catch (NumberFormatException e)
       {
         throw new ApplicationException("Zeile " + zeile
-            + ": Ungültige Datenbank-ID für " + bezeichnung + ": " + wert);
+            + ": Ungültige Datenbank-ID für " + bezeichnung + ": "
+            + datenbankId);
       }
-      it.addFilter("id = ?", id);
+      DBIterator<Mitglied> it = Einstellungen.getDBService()
+          .createList(Mitglied.class);
+      it.addFilter("id = ?", datenbankId);
       if (!it.hasNext())
       {
-        throw new ApplicationException(
-            "Zeile " + zeile + ": " + bezeichnung + " nicht gefunden: " + wert);
+        throw new ApplicationException("Zeile " + zeile + ": " + bezeichnung
+            + " nicht gefunden: " + datenbankId);
       }
       return Long.valueOf(it.next().getID());
     }
-    it.addFilter("externemitgliedsnummer = ?", wert);
-    if (!it.hasNext())
+    if (externeNummer != null)
     {
-      throw new ApplicationException("Zeile " + zeile + ": " + bezeichnung
-          + " mit externer Mitgliedsnummer nicht gefunden: " + wert
-          + " (eine Datenbank-ID wird mit # angegeben, z. B. #17)");
+      if (!externeMitgliedsnummer)
+      {
+        throw new ApplicationException("Zeile " + zeile + ": " + bezeichnung
+            + " mit externer Mitgliedsnummer " + externeNummer
+            + " nicht in der Datei gefunden. Ist die externe Mitgliedsnummer nicht aktiviert, kann nur auf Zeilen der Datei verwiesen werden.");
+      }
+      DBIterator<Mitglied> it = Einstellungen.getDBService()
+          .createList(Mitglied.class);
+      it.addFilter("externemitgliedsnummer = ?", externeNummer);
+      if (!it.hasNext())
+      {
+        throw new ApplicationException("Zeile " + zeile + ": " + bezeichnung
+            + " mit externer Mitgliedsnummer nicht gefunden: " + externeNummer);
+      }
+      Mitglied zahler = it.next();
+      if (it.hasNext())
+      {
+        throw new ApplicationException("Zeile " + zeile
+            + ": Externe Mitgliedsnummer des Zahlers ist mehrfach vorhanden: "
+            + externeNummer);
+      }
+      return Long.valueOf(zahler.getID());
     }
-    Mitglied zahler = it.next();
-    if (it.hasNext())
-    {
-      throw new ApplicationException("Zeile " + zeile
-          + ": Externe Mitgliedsnummer des Zahlers ist mehrfach vorhanden: "
-          + wert);
-    }
-    return Long.valueOf(zahler.getID());
+    return null;
   }
 
   /**
@@ -1360,21 +1391,20 @@ public class MitgliederImport implements Importer
    * Zeilennummern in Meldungen bleiben daher unabhängig von der
    * Verarbeitungsreihenfolge die der CSV-Datei.
    * <p>
-   * Verweise in zahlerid / alternativer_zahlerid:
-   * <ul>
-   * <li>Zahl: Datenbank-ID eines vorhandenen Mitglieds, bei aktiver externer
-   * Mitgliedsnummer stattdessen die externe Mitgliedsnummer</li>
-   * <li>#zahl: immer die Datenbank-ID</li>
-   * <li>^: nächste Zeile oberhalb mit leerer Zelle in derselben Spalte</li>
-   * </ul>
+   * Pro Rolle (Vollzahler, abweichender Zahler) gibt es zwei Spalten:
+   * zahlerid / alternativer_zahlerid enthalten die Datenbank-ID eines
+   * vorhandenen Mitglieds, externezahlerid / externealternativer_zahlerid die
+   * externe Mitgliedsnummer. Diese wird in der Spalte externemitgliedsnummer
+   * einer Zeile der Datei gesucht, bei aktiver externer Mitgliedsnummer
+   * zusätzlich in der Datenbank. In beiden Spalten verweist ^ auf die nächste
+   * Zeile oberhalb, die in dieser Rolle keinen Zahler angibt.
+   * <p>
    * Jede Zeile wird nach den Zeilen der Datei verarbeitet, auf die sie
-   * verweist (^ oder externe Mitgliedsnummer einer Zeile der Datei).
+   * verweist.
    */
   static class ZeilenDurchlauf
   {
     private final ResultSet results;
-
-    private final boolean externeMitgliedsnummer;
 
     /** Kleingeschriebener Spaltenname -> Spaltenname in der Datei */
     private final Map<String, String> spalten = new HashMap<>();
@@ -1387,11 +1417,10 @@ public class MitgliederImport implements Importer
 
     private int position = 0;
 
-    ZeilenDurchlauf(ResultSet results, boolean externeMitgliedsnummer)
-        throws SQLException, ApplicationException
+    ZeilenDurchlauf(ResultSet results) throws SQLException,
+        ApplicationException
     {
       this.results = results;
-      this.externeMitgliedsnummer = externeMitgliedsnummer;
       ResultSetMetaData meta = results.getMetaData();
       for (int i = 1; i <= meta.getColumnCount(); i++)
       {
@@ -1416,13 +1445,13 @@ public class MitgliederImport implements Importer
       return reihenfolge.size();
     }
 
-    /** CSV-Zeile, auf die zahlerid der Zeile verweist, sonst null. */
+    /** CSV-Zeile, auf die der Vollzahler der Zeile verweist, sonst null. */
     Integer getZahlerZeile(int zeile)
     {
       return zahlerZeilen.get(zeile);
     }
 
-    /** CSV-Zeile, auf die alternativer_zahlerid verweist, sonst null. */
+    /** CSV-Zeile, auf die der abweichende Zahler verweist, sonst null. */
     Integer getAlternativerZahlerZeile(int zeile)
     {
       return alternativerZahlerZeilen.get(zeile);
@@ -1453,28 +1482,25 @@ public class MitgliederImport implements Importer
       // Durchlauf 1: Zellen und externe Mitgliedsnummern einlesen
       List<Integer> zeilen = new ArrayList<>();
       Map<Integer, String> zahlerZellen = new HashMap<>();
+      Map<Integer, String> externeZahlerZellen = new HashMap<>();
       Map<Integer, String> alternativeZellen = new HashMap<>();
+      Map<Integer, String> externeAlternativeZellen = new HashMap<>();
       Map<String, Integer> nummerZuZeile = new HashMap<>();
+      Set<String> doppelt = new HashSet<>();
       results.beforeFirst();
       while (results.next())
       {
         int zeile = results.getRow();
         zeilen.add(zeile);
         zahlerZellen.put(zeile, zelle(results, "zahlerid"));
+        externeZahlerZellen.put(zeile, zelle(results, "externezahlerid"));
         alternativeZellen.put(zeile, zelle(results, "alternativer_zahlerid"));
-        if (externeMitgliedsnummer)
+        externeAlternativeZellen.put(zeile,
+            zelle(results, "externealternativer_zahlerid"));
+        String nummer = zelle(results, "externemitgliedsnummer");
+        if (nummer != null && nummerZuZeile.putIfAbsent(nummer, zeile) != null)
         {
-          String nummer = zelle(results, "externemitgliedsnummer");
-          if (nummer != null)
-          {
-            Integer vorher = nummerZuZeile.put(nummer, zeile);
-            if (vorher != null)
-            {
-              throw new ApplicationException("Zeile " + zeile
-                  + ": Externe Mitgliedsnummer " + nummer
-                  + " ist bereits in Zeile " + vorher + " vergeben");
-            }
-          }
+          doppelt.add(nummer);
         }
       }
       results.beforeFirst();
@@ -1486,11 +1512,24 @@ public class MitgliederImport implements Importer
       for (int zeile : zeilen)
       {
         String zahler = zahlerZellen.get(zeile);
+        String externerZahler = externeZahlerZellen.get(zeile);
         String alternative = alternativeZellen.get(zeile);
-        Integer zahlerZeile = verweis(zeile, "zahlerid", zahler,
-            letzteOhneZahler, nummerZuZeile);
+        String externeAlternative = externeAlternativeZellen.get(zeile);
+        Integer zahlerZeile = verweis(zeile, "zahlerid", zahler, false,
+            letzteOhneZahler, nummerZuZeile, doppelt);
+        if (zahlerZeile == null)
+        {
+          zahlerZeile = verweis(zeile, "externezahlerid", externerZahler, true,
+              letzteOhneZahler, nummerZuZeile, doppelt);
+        }
         Integer alternativeZeile = verweis(zeile, "alternativer_zahlerid",
-            alternative, letzteOhneAlternative, nummerZuZeile);
+            alternative, false, letzteOhneAlternative, nummerZuZeile, doppelt);
+        if (alternativeZeile == null)
+        {
+          alternativeZeile = verweis(zeile, "externealternativer_zahlerid",
+              externeAlternative, true, letzteOhneAlternative, nummerZuZeile,
+              doppelt);
+        }
         List<Integer> ziele = new ArrayList<>();
         if (zahlerZeile != null)
         {
@@ -1503,12 +1542,12 @@ public class MitgliederImport implements Importer
           ziele.add(alternativeZeile);
         }
         abhaengigVon.put(zeile, ziele);
-        // Zeilen mit eigener Angabe sind kein Ziel für ^ in dieser Spalte
-        if (zahler == null)
+        // Zeilen mit eigener Angabe sind kein Ziel für ^ in dieser Rolle
+        if (zahler == null && externerZahler == null)
         {
           letzteOhneZahler = zeile;
         }
-        if (alternative == null)
+        if (alternative == null && externeAlternative == null)
         {
           letzteOhneAlternative = zeile;
         }
@@ -1526,11 +1565,11 @@ public class MitgliederImport implements Importer
     /**
      * Zielzeile eines Verweises auf eine Zeile der Datei. Null, wenn die
      * Zelle leer ist oder auf ein Mitglied verweist, das schon in der
-     * Datenbank steht (Datenbank-ID, #zahl oder externe Mitgliedsnummer).
+     * Datenbank steht (Datenbank-ID oder externe Mitgliedsnummer).
      */
     private static Integer verweis(int zeile, String spalte, String wert,
-        Integer oberhalb, Map<String, Integer> nummerZuZeile)
-        throws ApplicationException
+        boolean extern, Integer oberhalb, Map<String, Integer> nummerZuZeile,
+        Set<String> doppelt) throws ApplicationException
     {
       if (wert == null)
       {
@@ -1545,8 +1584,22 @@ public class MitgliederImport implements Importer
         }
         return oberhalb;
       }
-      Integer ziel = wert.startsWith("#") ? null : nummerZuZeile.get(wert);
-      if (ziel != null && ziel == zeile)
+      if (!extern)
+      {
+        return null;
+      }
+      Integer ziel = nummerZuZeile.get(wert);
+      if (ziel == null)
+      {
+        return null;
+      }
+      if (doppelt.contains(wert))
+      {
+        throw new ApplicationException("Zeile " + zeile + ": In " + spalte
+            + " verwiesene externe Mitgliedsnummer " + wert
+            + " kommt in der Datei mehrfach vor");
+      }
+      if (ziel == zeile)
       {
         throw new ApplicationException("Zeile " + zeile
             + ": Ein Mitglied kann nicht sein eigener Zahler sein");

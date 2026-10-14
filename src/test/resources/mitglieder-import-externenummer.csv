@@ -1,4 +1,4 @@
-externemitgliedsnummer;name;vorname;beitragsgruppe;zahlerid;alternativer_zahlerid
+externemitgliedsnummer;name;vorname;beitragsgruppe;externezahlerid;externealternativer_zahlerid
 M-2;Mustermann;Anna;Angehoeriger;M-1;
 M-1;Mustermann;Max;Vollzahler;;
 M-3;Meier;Hans;Vollzahler;;

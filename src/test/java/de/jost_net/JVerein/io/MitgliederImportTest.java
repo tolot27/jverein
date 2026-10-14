@@ -727,15 +727,83 @@ class MitgliederImportTest
   }
 
   @Test
-  void idUndExterneNummerGleichzeitigSindFehler() throws Exception
+  void idUndExterneNummerZeigenAufDasSelbeMitglied() throws Exception
   {
-    importieren(csv(ALLE_SPALTEN, "1;Mustermann;Anna;Angehoeriger;1;2;;"));
-    verify(monitor).log(contains(
-        "Zeile 1: zahlerid und externezahlerid dürfen nicht gleichzeitig angegeben werden"));
+    vorhandenesMitglied("Zahler", "Paul", "9"); // ID 1
 
-    importieren(csv(ALLE_SPALTEN, "1;Mustermann;Anna;Vollzahler;;;1;2"));
+    importieren(csv(ALLE_SPALTEN, "1;Mustermann;Anna;Angehoeriger;1;9;;"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(Long.valueOf(1), persistiertNachVorname("Anna").get("VollZahlerID"));
+  }
+
+  @Test
+  void findetDieIdKeinMitgliedWirdDieExterneNummerVerwendet() throws Exception
+  {
+    vorhandenesMitglied("Zahler", "Paul", "9"); // ID 1
+
+    importieren(csv(ALLE_SPALTEN, "1;Mustermann;Anna;Angehoeriger;99;9;;"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(Long.valueOf(1), persistiertNachVorname("Anna").get("VollZahlerID"));
+  }
+
+  @Test
+  void findetDieIdEinMitgliedWirdDieUnbekannteExterneNummerIgnoriert()
+      throws Exception
+  {
+    vorhandenesMitglied("Zahler", "Paul", "9"); // ID 1
+
+    importieren(csv(ALLE_SPALTEN, "1;Mustermann;Anna;Angehoeriger;1;unbekannt;;"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(Long.valueOf(1), persistiertNachVorname("Anna").get("VollZahlerID"));
+  }
+
+  @Test
+  void idUndExterneNummerAufVerschiedeneMitgliederBrechenAb() throws Exception
+  {
+    vorhandenesMitglied("Zahler", "Paul", "9"); // ID 1
+    vorhandenesMitglied("Zahler", "Pia", "8"); // ID 2
+
+    importieren(csv(ALLE_SPALTEN, "1;Mustermann;Anna;Angehoeriger;1;8;;"));
+
+    verify(monitor).log(contains("Zeile 1: Vollzahler: zahlerid 1 und "
+        + "externezahlerid 8 verweisen auf verschiedene Mitglieder"));
+    assertTrue(nichtPersistiert("1"));
+  }
+
+  @Test
+  void findetWederIdNochExterneNummerBrichtAb() throws Exception
+  {
+    importieren(csv(ALLE_SPALTEN, "1;Mustermann;Anna;Angehoeriger;99;17;;"));
+
     verify(monitor).log(contains(
-        "Zeile 1: alternativer_zahlerid und externealternativer_zahlerid dürfen nicht gleichzeitig angegeben werden"));
+        "Zeile 1: Vollzahler weder mit zahlerid 99 noch mit externezahlerid 17 gefunden"));
+    assertTrue(datenbank.isEmpty());
+  }
+
+  @Test
+  void idUndExterneNummerDesAbweichendenZahlersWerdenGleichBehandelt()
+      throws Exception
+  {
+    vorhandenesMitglied("Zahler", "Paul", "9"); // ID 1
+
+    importieren(csv(ALLE_SPALTEN, "1;Mustermann;Anna;Vollzahler;;;99;9"));
+
+    verify(monitor, never()).log(anyString());
+    assertEquals(Long.valueOf(1),
+        persistiertNachVorname("Anna").get("AbweichenderZahlerID"));
+  }
+
+  @Test
+  void caretMitZweiterAngabeZurSelbenRolleBrichtAb() throws Exception
+  {
+    importieren(csv(ALLE_SPALTEN, "1;Mustermann;Max;Vollzahler;;;;",
+        "2;Mustermann;Anna;Angehoeriger;^;5;;"));
+
+    verify(monitor).log(contains("Zeile 2: ^ kann nicht zusammen mit einer "
+        + "zweiten Angabe zum Vollzahler stehen"));
     assertTrue(datenbank.isEmpty());
   }
 
